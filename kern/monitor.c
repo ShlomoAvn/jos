@@ -24,6 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display information about the stack", mon_backtrace },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -55,12 +56,46 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
-	return 0;
+    uint32_t ebp = read_ebp();
+    uint32_t eip;
+    uint32_t args[5];
+    int i;
+    struct Eipdebuginfo info;
+
+    cprintf("Stack backtrace:\n");
+
+    while (ebp != 0) {
+        eip = *((uint32_t *)(ebp + 4));
+
+        for (i = 0; i < 5; i++)
+            args[i] = *((uint32_t *)(ebp + 8 + 4 * i));
+
+        // הדפסת הנתונים מהערימה
+        cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
+                ebp, eip, args[0], args[1], args[2], args[3], args[4]);
+
+        // שאיבת מידע על הקוד
+        if (debuginfo_eip(eip, &info) == 0) {
+            cprintf("         %s:%d: %.*s+%u\n",
+                    info.eip_file,
+                    info.eip_line,
+                    info.eip_fn_namelen,
+                    info.eip_fn_name,
+                    eip - info.eip_fn_addr);
+        }
+
+        // לעבור למסגרת הקודמת
+        ebp = *((uint32_t *)ebp);
+    }
+
+    return 0;
 }
+
 
 
 
