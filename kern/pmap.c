@@ -5,7 +5,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
+#include <kern/monitor.h>
 #include <kern/pmap.h>
 #include <kern/kclock.h>
 
@@ -33,12 +33,15 @@ static void
 i386_detect_memory(void)
 {
 	size_t npages_extmem;
+	size_t npages_extmem1;
 
 	// Use CMOS calls to measure available base & extended memory.
 	// (CMOS calls return results in kilobytes.)
 	npages_basemem = (nvram_read(NVRAM_BASELO) * 1024) / PGSIZE;
 	npages_extmem = (nvram_read(NVRAM_EXTLO) * 1024) / PGSIZE;
 
+	//cprintf("Base mem        : %u KB (%u pages)\n", npages_basemem * 4, npages_basemem);
+	//cprintf("Extended mem: %u KB (%u pages)\n", npages_extmem * 4, npages_extmem);
 	// Calculate the number of physical pages available in both base
 	// and extended memory.
 	if (npages_extmem)
@@ -97,9 +100,13 @@ boot_alloc(uint32_t n)
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
 	//
-	// LAB 2: Your code here.
-
-	return NULL;
+	int allocated = ROUNDUP(n, PGSIZE);
+	if ((nextfree + allocated - (char *) KERNBASE) / PGSIZE > npages) {
+		panic("boot_alloc: out of memory\n");
+	}
+	result = nextfree;
+	nextfree += allocated;
+	return result;
 }
 
 // Set up a two-level page table:
@@ -121,13 +128,13 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
 	memset(kern_pgdir, 0, PGSIZE);
-
+	//panic("mem_init: This function is not finished\n");
 	//////////////////////////////////////////////////////////////////////
 	// Recursively insert PD in itself as a page table, to form
 	// a virtual page table at virtual address UVPT.
@@ -144,7 +151,8 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-
+	pages = (struct PageInfo *) boot_alloc(npages * sizeof(struct PageInfo));
+	memset(pages, 0, npages * sizeof(struct PageInfo));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -248,11 +256,21 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-	for (i = 0; i < npages; i++) {
+	for (i = 1; i < npages; i++) {
+		uintptr_t pa = i * PGSIZE;
+	
+
+		if ((pa >= IOPHYSMEM && pa < EXTPHYSMEM) || (pa >= EXTPHYSMEM && pa <= (uintptr_t)PADDR(boot_alloc(0)))) {
+			continue;
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+		
+	// Mark page 0 as in use, since it contains the real-mode IDT and BIOS structures.
+	pages[0].pp_ref = 1;
+	pages[0].pp_link = NULL;
 }
 
 //
@@ -270,8 +288,23 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
-	return 0;
+	if (!page_free_list) {
+		return NULL; // Out of free memory
+	}
+
+	// Remove the first page from the free list
+	struct PageInfo *allocated_page = page_free_list;
+	page_free_list = page_free_list->pp_link;
+
+	// Clear the page if ALLOC_ZERO flag is set
+	if (alloc_flags & ALLOC_ZERO) {
+		memset(page2kva(allocated_page), 0, PGSIZE);
+	}
+
+	// Set pp_link to NULL to prevent double-free bugs
+	allocated_page->pp_link = NULL;
+
+	return allocated_page;
 }
 
 //
@@ -281,9 +314,17 @@ page_alloc(int alloc_flags)
 void
 page_free(struct PageInfo *pp)
 {
-	// Fill this function in
-	// Hint: You may want to panic if pp->pp_ref is nonzero or
-	// pp->pp_link is not NULL.
+	// Ensure the page is not being referenced and is not already in the free list
+	if (pp->pp_ref != 0) {
+		panic("page_free: pp->pp_ref is nonzero");
+	}
+	if (pp->pp_link != NULL) {
+		panic("page_free: pp->pp_link is not NULL");
+	}
+
+	// Add the page back to the free list
+	pp->pp_link = page_free_list;
+	page_free_list = pp;
 }
 
 //
@@ -442,8 +483,10 @@ check_page_free_list(bool only_low_memory)
 	int nfree_basemem = 0, nfree_extmem = 0;
 	char *first_free_page;
 
-	if (!page_free_list)
+	if (!page_free_list){
 		panic("'page_free_list' is a null pointer!");
+	}
+	//assert(1==0);
 
 	if (only_low_memory) {
 		// Move pages with lower addresses first in the free
@@ -487,6 +530,7 @@ check_page_free_list(bool only_low_memory)
 	}
 
 	assert(nfree_basemem > 0);
+	//mon_backtrace(0,0,0);
 	assert(nfree_extmem > 0);
 }
 
