@@ -19,6 +19,11 @@ struct PageInfo *pages;		// Physical page state array
 static struct PageInfo *page_free_list;	// Free list of physical pages
 
 
+static inline int cpu_supports_pse(void);
+static inline void enable_pse(void);
+void map_kernbase_with_big_pages(pde_t *pgdir);
+
+
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
 // --------------------------------------------------------------
@@ -198,7 +203,14 @@ memset(pages, 0, npages * sizeof(struct PageInfo));
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
+	if (cpu_supports_pse()) {
+		//cprintf("Using PSE to map kernel memory\n");
+		enable_pse();
+		map_kernbase_with_big_pages(kern_pgdir);
+	} else {
+		//cprintf("PSE not supported, using 4KB pages\n");
+		boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
+	}
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
@@ -421,6 +433,17 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
     }
 }
 
+void map_kernbase_with_big_pages(pde_t *pgdir) {
+    uintptr_t va;
+    physaddr_t pa;
+
+    for (va = KERNBASE, pa = 0; va != 0; va += 0x400000, pa += 0x400000) {
+		
+        pgdir[PDX(va)] = pa | PTE_P | PTE_W | PTE_PS;
+    }
+}
+
+
 //
 // Map the physical page 'pp' at virtual address 'va'.
 // The permissions (the low 12 bits) of the page table entry
@@ -537,6 +560,24 @@ tlb_invalidate(pde_t *pgdir, void *va)
 	// Flush the entry only if we're modifying the current address space.
 	// For now, there is only one address space, so always invalidate.
 	invlpg(va);
+}
+
+
+
+static inline int cpu_supports_pse(void) {
+    uint32_t edx;
+    asm volatile("cpuid"
+                 : "=d" (edx)
+                 : "a" (1)
+                 : "ecx", "ebx");
+    return (edx & (1 << 3)) != 0; 
+} 
+
+static inline void enable_pse(void) {
+    uint32_t cr4;
+    asm volatile("movl %%cr4, %0" : "=r" (cr4));
+    cr4 |= (1 << 4); // Enable PSE
+    asm volatile("movl %0, %%cr4" :: "r" (cr4));
 }
 
 
@@ -704,8 +745,10 @@ check_kern_pgdir(void)
 
 
 	// check phys mem
-	for (i = 0; i < npages * PGSIZE; i += PGSIZE)
+	for (i = 0; i < npages * PGSIZE; i += PGSIZE){
+		//cprintf("check_va2pa(%x) = %x\n", KERNBASE + i, check_va2pa(pgdir, KERNBASE + i));
 		assert(check_va2pa(pgdir, KERNBASE + i) == i);
+	}
 
 	// check kernel stack
 	for (i = 0; i < KSTKSIZE; i += PGSIZE)
@@ -743,8 +786,13 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pte_t *p;
 
 	pgdir = &pgdir[PDX(va)];
+	
 	if (!(*pgdir & PTE_P))
 		return ~0;
+	
+	if (*pgdir & PTE_PS)
+		return (PTE_ADDR(*pgdir)) + (va & 0x003FFFFF);
+
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
