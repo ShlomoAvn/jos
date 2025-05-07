@@ -211,6 +211,7 @@ memset(pages, 0, npages * sizeof(struct PageInfo));
 		//cprintf("PSE not supported, using 4KB pages\n");
 		boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
 	}
+	//cprintf("size of page info struct: %d\n", sizeof(struct PageInfo));
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
