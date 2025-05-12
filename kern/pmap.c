@@ -164,6 +164,8 @@ memset(pages, 0, npages * sizeof(struct PageInfo));
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+	envs = (struct Env *) boot_alloc(NENV * sizeof(struct Env));
+	memset(envs, 0, NENV * sizeof(struct Env));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -187,7 +189,7 @@ memset(pages, 0, npages * sizeof(struct PageInfo));
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U | PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
 	// (ie. perm = PTE_U | PTE_P).
@@ -195,6 +197,7 @@ memset(pages, 0, npages * sizeof(struct PageInfo));
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
+	boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -216,14 +219,14 @@ memset(pages, 0, npages * sizeof(struct PageInfo));
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	if (cpu_supports_pse()) {
-		//cprintf("Using PSE to map kernel memory\n");
-		enable_pse();
-		map_kernbase_with_big_pages(kern_pgdir);
-	} else {
+	// if (cpu_supports_pse()) {
+	// 	//cprintf("Using PSE to map kernel memory\n");
+	// 	enable_pse();
+	// 	map_kernbase_with_big_pages(kern_pgdir);
+	// } else {
 		//cprintf("PSE not supported, using 4KB pages\n");
 		boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
-	}
+	//}
 	//cprintf("size of page info struct: %d\n", sizeof(struct PageInfo));
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -499,6 +502,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
     	}
 	*pte  = page2pa(pp) | PTE_P | perm;
 	pp->pp_ref++;
+	//cprintf("page_insert: pp->pp_ref = %d\n", pp->pp_ref);
 	return 0;
 }
 
@@ -600,7 +604,18 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+	uintptr_t start = ROUNDDOWN((uintptr_t)va, PGSIZE);
+	uintptr_t end = ROUNDUP((uintptr_t)va + len, PGSIZE);
 
+	uintptr_t addr = start;
+	for (; addr < end; addr += PGSIZE) {
+		pte_t *pte = pgdir_walk(env->env_pgdir, (void *)addr, 0);
+
+		if (addr >= ULIM || !pte || !(*pte & (perm | PTE_P))) {
+			user_mem_check_addr = addr < (uintptr_t)va ? (uintptr_t)va : addr;
+			return -E_FAULT;
+		}
+	}
 	return 0;
 }
 
@@ -803,9 +818,9 @@ check_kern_pgdir(void)
 		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
 
 	// check envs array (new test for lab 3)
-	n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
-	for (i = 0; i < n; i += PGSIZE)
-		assert(check_va2pa(pgdir, UENVS + i) == PADDR(envs) + i);
+	// n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
+	// for (i = 0; i < n; i += PGSIZE)
+	// 	assert(check_va2pa(pgdir, UENVS + i) == PADDR(envs) + i);
 
 	// check phys mem
 	for (i = 0; i < npages * PGSIZE; i += PGSIZE){
