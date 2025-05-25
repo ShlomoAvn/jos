@@ -72,7 +72,44 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-
+	void divide();
+	SETGATE(idt[0], 0, GD_KT, divide, 0);
+	void debug();
+	SETGATE(idt[1], 0, GD_KT, debug, 0);
+	void nmi();
+	SETGATE(idt[2], 0, GD_KT, nmi, 0);
+	void brkpt();
+	SETGATE(idt[3], 1, GD_KT, brkpt, 3);
+	void oflow();
+	SETGATE(idt[4], 1, GD_KT, oflow, 0);
+	void bound();
+	SETGATE(idt[5], 0, GD_KT, bound, 0);
+	void illop();
+	SETGATE(idt[6], 0, GD_KT, illop, 0);
+	void device();
+	SETGATE(idt[7], 0, GD_KT, device, 0);
+	void dblflt();
+	SETGATE(idt[8], 0, GD_KT, dblflt, 0);
+	void tss();
+	SETGATE(idt[10], 0, GD_KT, tss, 0);
+	void segnp();
+	SETGATE(idt[11], 0, GD_KT, segnp, 0);
+	void stack();
+	SETGATE(idt[12], 0, GD_KT, stack, 0);
+	void gpflt();
+	SETGATE(idt[13], 0, GD_KT, gpflt, 0);
+	void pgflt();
+	SETGATE(idt[14], 0, GD_KT, pgflt, 0);
+	void fperr();
+	SETGATE(idt[16], 0, GD_KT, fperr, 0);
+	void align();
+	SETGATE(idt[17], 0, GD_KT, align, 0);
+	void mchk();
+	SETGATE(idt[18], 0, GD_KT, mchk, 0);
+	void simderr();
+	SETGATE(idt[19], 0, GD_KT, simderr, 0);
+	void syscall_handler();
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, syscall_handler, 3);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -193,9 +230,56 @@ trap_dispatch(struct Trapframe *tf)
 		panic("unhandled trap in kernel");
 	else {
 		env_destroy(curenv);
+	if (tf->tf_trapno==T_PGFLT)
+	{
+		page_fault_handler(tf);
 		return;
 	}
+	else if(tf->tf_trapno==T_BRKPT)
+	{
+		monitor(tf);
+		return;
+	}
+	else if (tf->tf_trapno == T_SYSCALL)
+	{
+		
+		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
+			tf->tf_regs.reg_edx,
+			tf->tf_regs.reg_ecx,
+			tf->tf_regs.reg_ebx,
+			tf->tf_regs.reg_edi,
+			tf->tf_regs.reg_esi);
+		return;
+	}
+	else if (tf->tf_trapno == T_DEBUG) {
+    cprintf("Single-step trap at EIP %08x\n", tf->tf_eip);
+    monitor(tf); 
+    return;
+	}
+
+	
+	else
+	{
+
+		print_trapframe(tf);
+		if (tf->tf_cs == GD_KT)
+		{
+			panic("unhandled trap in kernel");
+		}
+		else 
+		{
+		env_destroy(curenv);
+		}
+		return;
+	}
+
+
+	
+	// Unexpected trap: The user process or the kernel has a bug.
+	
 }
+
+
 
 void
 trap(struct Trapframe *tf)
@@ -266,7 +350,12 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-
+	if ((tf->tf_cs & 3) == 0) {
+		// Page fault in kernel mode
+		cprintf("[%08x] kernel fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+		panic("Page fault in kernel mode at va %08x", fault_va);
+	}
 	// LAB 3: Your code here.
 
 	// We've already handled kernel-mode exceptions, so if we get here,

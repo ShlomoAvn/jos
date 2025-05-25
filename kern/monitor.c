@@ -11,6 +11,7 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/trap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -25,10 +26,40 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display information about the stack", mon_backtrace },
+	{ "continue", "Continue execution from current location", mon_continue },
+	{ "step", "Single-step one instruction", mon_step },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
 /***** Implementations of basic kernel monitor commands *****/
+
+
+int
+mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	if (tf == NULL) {
+		cprintf("No trap frame to continue from.\n");
+		return 0;
+	}
+	cprintf("Continuing from EIP %08x\n", tf->tf_eip);
+	env_pop_tf(tf); 
+	return -1;     
+}
+
+int
+mon_step(int argc, char **argv, struct Trapframe *tf)
+{
+	if (tf == NULL) {
+		cprintf("No trap frame to single-step from.\n");
+		return 0;
+	}
+	tf->tf_eflags |= FL_TF; 
+	env_pop_tf(tf);         
+	return -1;
+}
+
+
 
 int
 mon_help(int argc, char **argv, struct Trapframe *tf)
@@ -56,12 +87,46 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
-	return 0;
+    uint32_t ebp = read_ebp();
+    uint32_t eip;
+    uint32_t args[5];
+    int i;
+    struct Eipdebuginfo info;
+
+    cprintf("Stack backtrace:\n");
+
+    while (ebp != 0) {
+        eip = *((uint32_t *)(ebp + 4));
+		cprintf(" 112        ");
+
+        for (i = 0; i < 5; i++)
+            args[i] = *((uint32_t *)(ebp + 8 + 4 * i));
+
+        // הדפסת הנתונים מהערימה
+        cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
+                ebp, eip, args[0], args[1], args[2], args[3], args[4]);
+        // שאיבת מידע על הקוד
+        if (debuginfo_eip(eip, &info) == 0) {
+            cprintf("         %s:%d: %.*s+%u\n",
+                    info.eip_file,
+                    info.eip_line,
+                    info.eip_fn_namelen,
+                    info.eip_fn_name,
+                    eip - info.eip_fn_addr);
+        }
+
+        // לעבור למסגרת הקודמת
+        ebp = *((uint32_t *)ebp);
+    }
+
+    return 0;
 }
+
 
 
 
@@ -117,10 +182,12 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
-	if (tf != NULL)
+	if (tf != NULL){
 		print_trapframe(tf);
+	}
 
 	while (1) {
+		
 		buf = readline("K> ");
 		if (buf != NULL)
 			if (runcmd(buf, tf) < 0)
