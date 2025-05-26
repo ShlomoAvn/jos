@@ -11,25 +11,31 @@ void sched_halt(void);
 void
 sched_yield(void)
 {
+<<<<<<< HEAD
 	struct Env *idle=curenv;
+=======
+	struct Env *idle = curenv;
+	int idle_envid = (idle == NULL) ? 0 : ENVX(idle->env_id);
+	int start_idx = (idle_envid + 1) % NENV;
+	int i;
+>>>>>>> recover-lost
 
-	// Implement simple round-robin scheduling.
-	//
-	// Search through 'envs' for an ENV_RUNNABLE environment in
-	// circular fashion starting just after the env this CPU was
-	// last running.  Switch to the first such environment found.
-	//
-	// If no envs are runnable, but the environment previously
-	// running on this CPU is still ENV_RUNNING, it's okay to
-	// choose that environment.
-	//
-	// Never choose an environment that's currently running on
-	// another CPU (env_status == ENV_RUNNING). If there are
-	// no runnable environments, simply drop through to the code
-	// below to halt the cpu.
+	// DEBUG: Print current state
+	// cprintf("sched_yield: current env %08x (idx %d)\n", 
+	//         idle ? idle->env_id : 0, idle_envid);
 
-	// LAB 4: Your code here.
+	// Search for runnable environment starting after current one
+	for (i = 0; i < NENV; i++) {
+		int idx = (start_idx + i) % NENV;
+		if (envs[idx].env_status == ENV_RUNNABLE) {
+			// cprintf("sched_yield: switching to env %08x (idx %d)\n", 
+			//         envs[idx].env_id, idx);
+			env_run(&envs[idx]);
+			// Never returns
+		}
+	}
 
+<<<<<<< HEAD
 
 	int idle_envid = (idle == NULL) ? -1 : ENVX(idle->env_id);
 	int i=0, index=0;
@@ -53,6 +59,16 @@ sched_yield(void)
 		env_run(idle);
 	}
 
+=======
+	// If no runnable environment found, try to continue with current one
+	if (idle && idle->env_status == ENV_RUNNING) {
+		//cprintf("sched_yield: continuing with current env %08x\n", idle->env_id);
+		env_run(idle);
+		// Never returns
+	}
+
+	//cprintf("sched_yield: no runnable environments, halting\n");
+>>>>>>> recover-lost
 	// sched_halt never returns
 	sched_halt();
 }
@@ -74,7 +90,7 @@ sched_halt(void)
 			break;
 	}
 	if (i == NENV) {
-		cprintf("No runnable environments in the system!\n");
+		//cprintf("No runnable environments in the system!\n");
 		while (1)
 			monitor(NULL);
 	}

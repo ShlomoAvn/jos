@@ -1,0 +1,50 @@
+* [33md4169d9[m[33m ([m[1;31morigin/lab4[m[33m, [m[1;32mlab4[m[33m)[m Gregory's commit
+*   [33m1e6cdea[m[33m ([m[1;36mHEAD[m[33m)[m Merge branch 'lab3' into lab4
+[32m|[m[33m\[m  
+[32m|[m * [33m8f305e9[m[33m ([m[1;32mlab3[m[33m)[m changes to lab3 after handin
+[32m|[m * [33me7513a2[m[33m ([m[1;31morigin/lab3[m[33m)[m final SOLUTION lab3
+[32m|[m *   [33mf08242c[m Merge branch 'lab2' into lab3
+[32m|[m [34m|[m[35m\[m  
+[32m|[m [34m|[m * [33m9fd3b31[m[33m ([m[1;31morigin/lab2[m[33m, [m[1;32mlab2[m[33m)[m Final
+[32m|[m [34m|[m * [33m87ef3e1[m Challenge1
+[32m|[m [34m|[m * [33m36a002a[m All parts
+[32m|[m [34m|[m * [33md17d629[m my part
+[32m|[m [34m|[m *   [33m5f8cd2b[m Merge branch 'lab1' into lab2
+[32m|[m [34m|[m [36m|[m[1;31m\[m  
+[32m|[m [34m|[m [36m|[m * [33m3ebb5a6[m[33m ([m[1;31morigin/lab1[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mlab1[m[33m)[m my solution to lab1
+[32m|[m [34m|[m [36m|[m * [33m03eae23[m my solution to lab1
+[32m|[m [34m|[m [36m|[m [1;31m|[m * [33m78cd543[m[33m ([m[1;31morigin/lab6[m[33m)[m more sched bits
+[32m|[m [34m|[m [36m|[m [1;31m|[m * [33m1c6defc[m Patch from Aviv BD: fixes bug where the kernel exit to monitor when every env is sleeping
+[32m|[m [34m|[m [36m|[m [1;31m|[m * [33m7df57ad[m add interrupt grading script
+[32m|[m [34m|[m [36m|[m [1;31m|[m * [33mf78e729[m fix lab6 grading script permissions
+[32m|[m [34m|[m [36m|[m [1;31m|[m *   [33m825ad50[m Merge branch 'lab5' into lab6
+[32m|[m [34m|[m [36m|[m [1;31m|[m [1;33m|[m[1;34m\[m  
+[32m|[m [34m|[m [36m|[m [1;31m|[m [1;33m|[m * [33m87d2430[m[33m ([m[1;31morigin/lab5[m[33m)[m fix lab5 grading script permissions
+[32m|[m [34m|[m [36m|[m [1;31m|[m [1;33m|[m *   [33m8b1341d[m Merge branch 'lab4' into lab5
+[32m|[m [34m|[m [36m|[m [1;31m|[m [1;33m|[m [1;35m|[m[32m\[m  
+[32m|[m [34m|[m[32m_[m[36m|[m[32m_[m[1;31m|[m[32m_[m[1;33m|[m[32m_[m[1;35m|[m[32m/[m  
+[32m|[m[32m/[m[34m|[m [36m|[m [1;31m|[m [1;33m|[m [1;35m|[m   
+* [34m|[m [36m|[m [1;31m|[m [1;33m|[m [1;35m|[m [33m042b967[m fix lab4 grading script permissions
+* [34m|[m [36m|[m [1;31m|[m [1;33m|[m [1;35m|[m [33m051cc54[m Merge branch 'lab3' into lab4
+[31m|[m[34m\[m[34m|[m [36m|[m [1;31m|[m [1;33m|[m [1;35m|[m 
+[31m|[m * [36m|[m [1;31m|[m [1;33m|[m [1;35m|[m [33me5bade9[m Merge branch 'lab2' into lab3
+[31m|[m [33m|[m[36m\[m[36m|[m [1;31m|[m [1;33m|[m [1;35m|[m 
+[31m|[m [33m|[m * [1;31m|[m [1;33m|[m [1;35m|[m [33m62d47c9[m fix lab2 grading script permissions
+[31m|[m * [34m|[m [1;31m|[m [1;33m|[m [1;35m|[m [33mec9bb87[m fix lab3 grading script permissions
+[31m|[m [34m|[m [34m|[m [1;31m|[m * [1;35m|[m [33m584ebe4[m complete merge
+[31m|[m [34m|[m [34m|[m [1;31m|[m * [1;35m|[m [33m1e0f1b9[m merge lab6
+[31m|[m [34m|[m [34m|[m [1;31m|[m [1;35m|[m[1;35m/[m  
+[31m|[m [34m|[m [34m|[m [1;31m|[m * [33md2f22bc[m merge lab5
+[31m|[m [34m|[m[31m_[m[34m|[m[31m_[m[1;31m|[m[31m/[m  
+[31m|[m[31m/[m[34m|[m [34m|[m [1;31m|[m   
+* [34m|[m [34m|[m [1;31m|[m [33m5feb0ff[m merge lab4
+[34m|[m[34m/[m [34m/[m [1;31m/[m  
+* [34m|[m [1;31m|[m [33m2f43360[m leftovers
+* [34m|[m [1;31m|[m [33m04dd545[m merge with latest version
+[34m|[m[34m/[m [1;31m/[m  
+* [1;31m/[m [33m24246f6[m merge lab2 + mit fixes
+[1;31m|[m[1;31m/[m  
+* [33m0b108ea[m add gitignore
+* [33mb028010[m[33m ([m[1;31morigin/master[m[33m)[m update
+* [33me42c78e[m fix 'make grade' timeout
+* [33mc0dd7d1[m init

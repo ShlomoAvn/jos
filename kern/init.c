@@ -60,9 +60,14 @@ i386_init(void)
 #else
 	// Touch all you want.
 	//ENV_CREATE(user_primes, ENV_TYPE_USER);
+<<<<<<< HEAD
 	ENV_CREATE(user_yield, ENV_TYPE_USER);
 	ENV_CREATE(user_yield, ENV_TYPE_USER);
 	ENV_CREATE(user_yield, ENV_TYPE_USER);
+=======
+	ENV_CREATE(user_primes, ENV_TYPE_USER);
+
+>>>>>>> recover-lost
 #endif // TEST*
 
 

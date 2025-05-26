@@ -66,8 +66,23 @@
     TRAPHANDLER(align, T_ALIGN)
     TRAPHANDLER_NOEC(mchk, T_MCHK)
     TRAPHANDLER_NOEC(simderr, T_SIMDERR)
-
 	TRAPHANDLER_NOEC(syscall_handler, T_SYSCALL)
+    TRAPHANDLER_NOEC(timer_handler, IRQ_OFFSET + 0)      /* Timer interrupt */
+    TRAPHANDLER_NOEC(keyboard_handler, IRQ_OFFSET + 1)   /* Keyboard interrupt */
+    TRAPHANDLER_NOEC(cascade_handler, IRQ_OFFSET + 2)    /* Cascade for 2nd PIC */
+    TRAPHANDLER_NOEC(com2_handler, IRQ_OFFSET + 3)       /* COM2 serial port */
+    TRAPHANDLER_NOEC(com1_handler, IRQ_OFFSET + 4)       /* COM1 serial port */
+    TRAPHANDLER_NOEC(lpt2_handler, IRQ_OFFSET + 5)       /* LPT2 parallel port */
+    TRAPHANDLER_NOEC(floppy_handler, IRQ_OFFSET + 6)     /* Floppy disk */
+    TRAPHANDLER_NOEC(lpt1_handler, IRQ_OFFSET + 7)       /* LPT1 / spurious */
+    TRAPHANDLER_NOEC(rtc_handler, IRQ_OFFSET + 8)        /* Real-time clock */
+    TRAPHANDLER_NOEC(irq9_handler, IRQ_OFFSET + 9)       /* Redirected IRQ2 */
+    TRAPHANDLER_NOEC(irq10_handler, IRQ_OFFSET + 10)     /* Reserved */
+    TRAPHANDLER_NOEC(irq11_handler, IRQ_OFFSET + 11)     /* Reserved */
+    TRAPHANDLER_NOEC(mouse_handler, IRQ_OFFSET + 12)     /* PS/2 mouse */
+    TRAPHANDLER_NOEC(fpu_handler, IRQ_OFFSET + 13)       /* FPU / coprocessor */
+    TRAPHANDLER_NOEC(primary_ata_handler, IRQ_OFFSET + 14) /* Primary ATA */
+    TRAPHANDLER_NOEC(secondary_ata_handler, IRQ_OFFSET + 15) /* Secondary ATA */
 /*
  * Lab 3: Your code here for _alltraps
  */
