@@ -11,14 +11,10 @@ void sched_halt(void);
 void
 sched_yield(void)
 {
-<<<<<<< HEAD
-	struct Env *idle=curenv;
-=======
 	struct Env *idle = curenv;
 	int idle_envid = (idle == NULL) ? 0 : ENVX(idle->env_id);
 	int start_idx = (idle_envid + 1) % NENV;
 	int i;
->>>>>>> recover-lost
 
 	// DEBUG: Print current state
 	// cprintf("sched_yield: current env %08x (idx %d)\n", 
@@ -35,31 +31,6 @@ sched_yield(void)
 		}
 	}
 
-<<<<<<< HEAD
-
-	int idle_envid = (idle == NULL) ? -1 : ENVX(idle->env_id);
-	int i=0, index=0;
-
-	// search envs after idle
-	for (i = idle_envid + 1; i < (NENV+idle_envid); i++) {
-		if (envs[i%NENV].env_status == ENV_RUNNABLE) {
-			env_run(&envs[i%NENV]);
-		}
-	}
-/*
-	// find from 1st env if not found
-	for (i = 0; i < idle_envid; i++) {;
-		if (envs[i].env_status == ENV_RUNNABLE) {
-			env_run(&envs[i]);
-		}
-	}
-*/
-	// if still not found, try idle
-	if(idle  && idle->env_status == ENV_RUNNING) {
-		env_run(idle);
-	}
-
-=======
 	// If no runnable environment found, try to continue with current one
 	if (idle && idle->env_status == ENV_RUNNING) {
 		//cprintf("sched_yield: continuing with current env %08x\n", idle->env_id);
@@ -68,7 +39,6 @@ sched_yield(void)
 	}
 
 	//cprintf("sched_yield: no runnable environments, halting\n");
->>>>>>> recover-lost
 	// sched_halt never returns
 	sched_halt();
 }

@@ -102,6 +102,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 
     while (ebp != 0) {
         eip = *((uint32_t *)(ebp + 4));
+		cprintf(" 112        ");
 
         for (i = 0; i < 5; i++)
             args[i] = *((uint32_t *)(ebp + 8 + 4 * i));
@@ -109,7 +110,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
         // הדפסת הנתונים מהערימה
         cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
                 ebp, eip, args[0], args[1], args[2], args[3], args[4]);
-		//cprintf(" 112        ");
         // שאיבת מידע על הקוד
         if (debuginfo_eip(eip, &info) == 0) {
             cprintf("         %s:%d: %.*s+%u\n",

@@ -75,7 +75,6 @@ sys_env_destroy(envid_t envid)
 static void
 sys_yield(void)
 {
-	cprintf("[%08x] sys_yield\n", curenv->env_id);
 	sched_yield();
 }
 
@@ -464,8 +463,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	//panic("syscall not implemented");
 
 	switch (syscallno) {
+	default:
 		case SYS_cputs:
-			cprintf("sys");
 			sys_cputs((const char *)a1, (size_t)a2);
 			return 0;
 		case SYS_yield: //NEW LAB 4 PRE A
@@ -493,8 +492,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_ipc_try_send((envid_t)a1, a2, (void *)a3, a4);
 		case SYS_ipc_recv:
 			return sys_ipc_recv((void *)a1);
-		default:	
-			return -E_NO_SYS;
+		
 			
 		return -E_NO_SYS;
 	}
