@@ -58,6 +58,7 @@
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
     "syscall.h": "c",
-    "lib.h": "c"
+    "lib.h": "c",
+    "new_sys_calls": "cpp"
   }
 }

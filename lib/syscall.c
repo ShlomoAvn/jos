@@ -111,3 +111,10 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
+int sys_env_snapshot(envid_t envid, void* dst) {
+    return syscall(SYS_env_snapshot, 0, envid, (uintptr_t)dst, 0, 0, 0);
+}
+
+int sys_env_restore(envid_t envid, void* src) {
+    return syscall(SYS_env_restore, 0, envid, (uintptr_t)src, 0, 0, 0);
+}

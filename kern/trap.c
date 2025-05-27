@@ -239,7 +239,6 @@ print_regs(struct PushRegs *regs)
 static void
 trap_dispatch(struct Trapframe *tf)
 {
-	//cprintf("5 big booms");
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	if (tf->tf_trapno==T_PGFLT)
@@ -314,7 +313,6 @@ trap(struct Trapframe *tf)
 	// of GCC rely on DF being clear
 	asm volatile("cld" ::: "cc");
 
-	//cprintf("5 big booms");
 	// Halt the CPU if some other CPU has called panic()
 	extern char *panicstr;
 	if (panicstr)
@@ -372,7 +370,6 @@ trap(struct Trapframe *tf)
 void
 page_fault_handler(struct Trapframe *tf)
 {
-	//cprintf("page_fault_handler called\n");
 	uint32_t fault_va;
 
 	// Read processor's CR2 register to find the faulting address
