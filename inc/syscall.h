@@ -17,8 +17,15 @@ enum {
 	SYS_yield,
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
+	SYS_env_load_elf,
 	SYS_time_msec,
 	NSYSCALLS
+};
+
+struct SegmentInfo {
+    void *srcva, *dstva;
+	unsigned int size;
+    int perm;
 };
 
 #endif /* !JOS_INC_SYSCALL_H */

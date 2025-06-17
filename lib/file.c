@@ -79,12 +79,12 @@ open(const char *path, int mode)
 
 	strcpy(fsipcbuf.open.req_path, path);
 	fsipcbuf.open.req_omode = mode;
-
+	
 	if ((r = fsipc(FSREQ_OPEN, fd)) < 0) {
 		fd_close(fd, 0);
 		return r;
 	}
-
+	//cprintf("in open\n");
 	return fd2num(fd);
 }
 
@@ -141,7 +141,20 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	int r;
+	/*if (n>sizeof(fsipcbuf.write.req_buf))
+	{
+		panic("devfile_write error");
+	}*/
+	//printf("devfile_write\n");
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	fsipcbuf.write.req_n = n;
+	memmove( fsipcbuf.write.req_buf, buf, n);
+	if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
+		return r;
+	assert(r <= n);
+	
+	return r;
 }
 
 static int

@@ -14,7 +14,7 @@ unsigned
 primeproc(int fd)
 {
 	int i, id, p, pfd[2], wfd, r;
-
+	
 	// fetch a prime from our left neighbor
 top:
 	if ((r = readn(fd, &p, 4)) != 4)
@@ -33,7 +33,7 @@ top:
 		fd = pfd[0];
 		goto top;
 	}
-
+	
 	close(pfd[0]);
 	wfd = pfd[1];
 
