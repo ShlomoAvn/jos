@@ -571,7 +571,7 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	pte_t *pte = pgdir_walk(pgdir, va, 0);
+	/*pte_t *pte = pgdir_walk(pgdir, va, 0);
     	if (!pte) {
         	return NULL;
     	}
@@ -582,7 +582,17 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 
         	return (pa2page(PTE_ADDR(*pte)));
     	}
-	return NULL;
+	return NULL;*/
+	//lab5 changes
+	pte_t * ptep = pgdir_walk(pgdir, va, 0);
+	if(ptep && ((*ptep) & PTE_P)) {
+		physaddr_t pa = PTE_ADDR(*ptep);
+		struct PageInfo * result = pa2page(pa);
+		if(pte_store)
+			*pte_store = ptep;
+		return result;
+	}
+	return NULL; 
 }
 
 //

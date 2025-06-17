@@ -33,7 +33,7 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 
 	if(check && ret > 0)
 		panic("syscall %d returned %d (> 0)", num, ret);
-
+	
 	return ret;
 }
 
@@ -41,6 +41,12 @@ void
 sys_cputs(const char *s, size_t len)
 {
 	syscall(SYS_cputs, 0, (uint32_t)s, len, 0, 0, 0);
+}
+
+int
+sys_env_load_elf(struct Trapframe *tf, struct SegmentInfo *seginfo)
+{
+	return syscall(SYS_env_load_elf, 0, (uint32_t)tf, (uint32_t)seginfo, 0, 0, 0);
 }
 
 int
@@ -114,6 +120,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, int perm)
 int
 sys_ipc_recv(void *dstva)
 {
+	
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 

@@ -33,8 +33,26 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
+	if ((err & FEC_WR) == 0 || (uvpt[PGNUM(addr)] & PTE_COW) == 0)
+		panic("pgfault: not a write to COW page");
 
-	panic("pgfault not implemented");
+	// Get the old page
+	void *oldpage = ROUNDDOWN(addr, PGSIZE);
+
+	// Allocate new page at temporary location
+	if ((r = sys_page_alloc(0, PFTEMP, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("pgfault: sys_page_alloc failed");
+
+	// Copy contents
+	memmove(PFTEMP, oldpage, PGSIZE);
+
+	// Remap the new page at the old address with read/write permission
+	if ((r = sys_page_map(0, PFTEMP, 0, oldpage, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("pgfault: sys_page_map failed");
+
+	// Unmap temporary page
+	if ((r = sys_page_unmap(0, PFTEMP)) < 0)
+		panic("pgfault: sys_page_unmap failed");
 }
 
 //
@@ -54,7 +72,42 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+/*
+	void *va = (void*)(pn * PGSIZE);
+	uint32_t perm = uvpt[pn] & PTE_SYSCALL;
+
+	if ((perm & PTE_W) || (perm & PTE_COW)) {
+		// If page is writable or COW, map it as COW in both parent and child
+		if ((r = sys_page_map(0, va, envid, va, (perm & ~PTE_W) | PTE_COW)) < 0)
+			panic("duppage: sys_page_map to child failed");
+		if ((r = sys_page_map(0, va, 0, va, (perm & ~PTE_W) | PTE_COW)) < 0)
+			panic("duppage: sys_page_map to self failed");
+	} else {
+		// Otherwise, just map the page directly with same permissions
+		if ((r = sys_page_map(0, va, envid, va, perm)) < 0)
+			panic("duppage: sys_page_map failed");
+	}
+	return 0;*/
+	//lab5 changes
+	void *va = (void*)(pn * PGSIZE);
+	uint32_t perm = uvpt[pn] & PTE_SYSCALL;
+
+	if ((uvpt[pn] & PTE_SHARE))
+	{
+		if ((r = sys_page_map(0, va, envid, va, perm & PTE_SYSCALL)) < 0)
+			panic("duppage: sys_page_map share failed");
+	}
+	else if ((perm & PTE_W) || (perm & PTE_COW) ) {
+		// If page is writable or COW, map it as COW in both parent and child
+		if ((r = sys_page_map(0, va, envid, va, (perm & ~PTE_W) | PTE_COW)) < 0)
+			panic("duppage: sys_page_map to child failed");
+		if ((r = sys_page_map(0, va, 0, va, (perm & ~PTE_W) | PTE_COW)) < 0)
+			panic("duppage: sys_page_map to self failed");
+	} else {
+		// Otherwise, just map the page directly with same permissions
+		if ((r = sys_page_map(0, va, envid, va, perm)) < 0)
+			panic("duppage: sys_page_map failed");
+	}
 	return 0;
 }
 
@@ -78,7 +131,41 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	set_pgfault_handler(pgfault);
+
+	// Create child
+	envid_t envid = sys_exofork();
+	if (envid < 0)
+		panic("sys_exofork failed");
+	if (envid == 0) {
+		// Child
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+
+	// Parent
+	// Copy page mappings
+	uint32_t addr;
+	for (addr = 0; addr < USTACKTOP; addr += PGSIZE) {
+		if ((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P)) {
+			if (addr != UXSTACKTOP - PGSIZE)
+				duppage(envid, PGNUM(addr));
+		}
+	}
+
+	// Allocate new exception stack for child
+	int r = sys_page_alloc(envid, (void*)(UXSTACKTOP - PGSIZE), PTE_P|PTE_U|PTE_W);
+	if (r < 0)
+		panic("sys_page_alloc failed");
+
+	// Set child's page fault handler
+	sys_env_set_pgfault_upcall(envid, thisenv->env_pgfault_upcall);
+
+	// Start child
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status failed");
+
+	return envid;
 }
 
 // Challenge!
