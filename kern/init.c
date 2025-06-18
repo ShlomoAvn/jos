@@ -38,7 +38,7 @@ i386_init(void)
 
 	// Lab 2 memory management initialization functions
 	mem_init();
-
+	cprintf("Physical memory:  available\n");
 	// Lab 3 user environment initialization functions
 	env_init();
 	trap_init();
@@ -63,10 +63,10 @@ i386_init(void)
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
 
-#if !defined(TEST_NO_NS)
-	// Start ns.
-	ENV_CREATE(net_ns, ENV_TYPE_NS);
-#endif
+// #if !defined(TEST_NO_NS)
+// 	// Start ns.
+// 	ENV_CREATE(net_ns, ENV_TYPE_NS);
+// #endif
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!

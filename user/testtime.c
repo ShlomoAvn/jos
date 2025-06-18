@@ -4,6 +4,7 @@
 void
 sleep(int sec)
 {
+	cprintf("sleeping for %d seconds...\n", sec);
 	unsigned now = sys_time_msec();
 	unsigned end = now + sec * 1000;
 
@@ -12,8 +13,10 @@ sleep(int sec)
 	if (end < now)
 		panic("sleep: wrap");
 
-	while (sys_time_msec() < end)
+	while (sys_time_msec() < end){
+		cprintf("end = %u, now = %u\n", end, sys_time_msec());
 		sys_yield();
+	}
 }
 
 void

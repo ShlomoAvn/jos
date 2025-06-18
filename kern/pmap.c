@@ -210,7 +210,7 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
-
+	cprintf("Mapping kernel stack at KSTACKTOP\n");
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -221,7 +221,7 @@ mem_init(void)
 	// Your code goes here:
 //	boot_map_region(kern_pgdir, KERNBASE, npages*PGSIZE, 0, PTE_W);
 	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
-
+	cprintf("Mapping physical memory at KERNBASE\n");
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
 
@@ -489,6 +489,7 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
     int i=0;
+	cprintf("boot_map_region: va = %x, size = %d, pa = %d, perm = %x\n", va, size, pa, perm);
 	for (i = 0; i < size/PGSIZE; ++i) {
         	pte_t *pte = pgdir_walk(pgdir, (void *) va, 1); //create
         	if (!pte) 

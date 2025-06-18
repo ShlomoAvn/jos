@@ -1,0 +1,2 @@
+make run-testtime QEMUOPTS="-nographic" INIT_CFLAGS=-DTEST_NO_NS
+make INIT_CFLAGS=-DTEST_NO_NS run-testtime

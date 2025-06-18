@@ -288,14 +288,12 @@ trap_dispatch(struct Trapframe *tf)
 	// Be careful! In multiprocessors, clock interrupts are
 	// triggered on every CPU.
 	// LAB 6: Your code here.
-
-
-
-	// Add time tick increment to clock interrupts.
-	// Be careful! In multiprocessors, clock interrupts are
-	// triggered on every CPU.
-	// LAB 6: Your code here.
-
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		time_tick();
+		lapic_eoi();
+		sched_yield();
+		return;
+	}
 
 
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
