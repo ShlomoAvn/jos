@@ -210,7 +210,7 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
-	cprintf("Mapping kernel stack at KSTACKTOP\n");
+
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -221,7 +221,7 @@ mem_init(void)
 	// Your code goes here:
 //	boot_map_region(kern_pgdir, KERNBASE, npages*PGSIZE, 0, PTE_W);
 	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
-	cprintf("Mapping physical memory at KERNBASE\n");
+
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
 
@@ -328,16 +328,21 @@ page_init(void)
 	pages[0].pp_ref = 1;
 	pages[0].pp_link = NULL;
 
-	for(i = 1; i < MPENTRY_PADDR/PGSIZE; i++)
+	for(i = 1; i < npages_basemem; i++)
 	{
+		if(i==MPENTRY_PADDR/PGSIZE)
+		{
+			pages[i].pp_ref = 1; 
+			continue;
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
 
 	int limit=npages_basemem + num_iohole + num_alloc;
-
-	for(i = npages_basemem; i < npages; i++)
+	//cprintf("npages_basemem: %d\n", npages_basemem);
+	for(i = npages-1 ; i >= npages_basemem; i--)
 	{
 		if (i>limit)
 		{
@@ -378,12 +383,10 @@ page_alloc(int alloc_flags)
 	// Remove the first page from the free list
 	struct PageInfo *allocated_page = page_free_list;
 	page_free_list = page_free_list->pp_link;
-
 	// Clear the page if ALLOC_ZERO flag is set
 	if (alloc_flags & ALLOC_ZERO) {
 		memset(page2kva(allocated_page), 0, PGSIZE);
 	}
-
 	// Set pp_link to NULL to prevent double-free bugs
 	allocated_page->pp_link = NULL;
 
@@ -489,7 +492,6 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
     int i=0;
-	cprintf("boot_map_region: va = %x, size = %d, pa = %d, perm = %x\n", va, size, pa, perm);
 	for (i = 0; i < size/PGSIZE; ++i) {
         	pte_t *pte = pgdir_walk(pgdir, (void *) va, 1); //create
         	if (!pte) 
