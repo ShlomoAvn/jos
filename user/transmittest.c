@@ -5,8 +5,10 @@
 void
 umain(int argc, char **argv)
 {
+
+    binaryname = "transmittest";
     char pkt[60] = "Hello, E1000!";
-    int r = sys_e1000_transmit(pkt, 60);
+    int r = sys_e1000_transmit((void *)pkt, 60);
     if (r < 0)
         cprintf("Transmit failed: %e\n", r);
     else
