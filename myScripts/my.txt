@@ -1,2 +1,41 @@
 make run-testtime QEMUOPTS="-nographic" INIT_CFLAGS=-DTEST_NO_NS
 make INIT_CFLAGS=-DTEST_NO_NS run-testtime
+make E1000_DEBUG=TXERR,TX qemu
+
+
+
+Patched QEMU
+To run info pg command you need patched (modified) version of qemu. We provide patches that extends qemu monitor functionality, improve triple fault handling and add debug messages for e1000 network driver. Run commands below to apply these patches and compile qemu.
+  $ sudo apt-get -y install pkg-config zlib1g-dev libglib2.0-dev dh-autoreconf bison flex libsdl2-2.0-0 libsdl2-dev libsdl2-net-dev libsdl2-ttf-dev libsdl2-gfx-dev libsdl2-image-dev
+  $ cd ~/
+  $ mkdir -p src
+  $ cd src
+  $ mkdir qemu
+  $ cd qemu
+  $ wget http://technion-csl.github.io/ose/software/qemu/qemu-2.3.0.tar.bz2
+  $ tar -jxvf qemu-2.3.0.tar.bz2
+  $ cd qemu-2.3.0
+  
+  Now download and apply "info pg" command patches on qemu sources:
+  $ wget http://technion-csl.github.io/ose/software/qemu/info_pg1.diff
+  $ wget http://technion-csl.github.io/ose/software/qemu/info_pg2.diff
+  $ patch -p1 < info_pg1.diff
+  $ patch -p1 < info_pg2.diff
+
+  Apply following patch to dump state and halt for inspection instead of resetting on triple fault:
+  $ wget http://technion-csl.github.io/ose/software/qemu/triple_fault.diff
+  $ patch -p1 < triple_fault.diff
+
+  Apply following patch to generate E1000 debug messages (useful for lab6):
+  $ wget http://technion-csl.github.io/ose/software/qemu/e1000_debug.diff
+  $ patch -p1 < e1000_debug.diff
+
+  Create "bin" directory in your home directory, compile and install qemu:
+  $ mkdir ~/bin
+  $ ./configure --prefix=$HOME/bin --disable-kvm --target-list=i386-softmmu --enable-sdl --with-sdlabi=2.0
+  $ make
+  $ make install
+
+  Now go to the source directory of jos and run:
+  $ export QEMU=$HOME/bin/bin/qemu-system-i386
+  $ make qemu

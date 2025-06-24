@@ -19,6 +19,7 @@ enum {
 	SYS_ipc_recv,
 	SYS_env_load_elf,
 	SYS_time_msec,
+	SYS_e1000_transmit,
 	NSYSCALLS
 };
 
@@ -27,5 +28,6 @@ struct SegmentInfo {
 	unsigned int size;
     int perm;
 };
+#define TX_PKT_SIZE 1518 // Maximum size of a packet for transmission
 
 #endif /* !JOS_INC_SYSCALL_H */

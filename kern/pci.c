@@ -4,7 +4,8 @@
 #include <kern/pci.h>
 #include <kern/pcireg.h>
 #include <kern/e1000.h>
-
+#define E1000_VENDOR_ID 0x8086
+#define E1000_DEVICE_ID 0x100e
 // Flag to do "lspci" at bootup
 static int pci_show_devs = 1;
 static int pci_show_addrs = 0;
@@ -31,6 +32,7 @@ struct pci_driver pci_attach_class[] = {
 // pci_attach_vendor matches the vendor ID and device ID of a PCI device. key1
 // and key2 should be the vendor ID and device ID respectively
 struct pci_driver pci_attach_vendor[] = {
+	{ E1000_VENDOR_ID, E1000_DEVICE_ID, e1000_attach },
 	{ 0, 0, 0 },
 };
 
@@ -252,6 +254,6 @@ pci_init(void)
 {
 	static struct pci_bus root_bus;
 	memset(&root_bus, 0, sizeof(root_bus));
-
+	cprintf("PCI: scanning bus %d\n", root_bus.busno);
 	return pci_scan_bus(&root_bus);
 }

@@ -63,10 +63,10 @@ i386_init(void)
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
 
-// #if !defined(TEST_NO_NS)
-// 	// Start ns.
-// 	ENV_CREATE(net_ns, ENV_TYPE_NS);
-// #endif
+#if !defined(TEST_NO_NS)
+	// Start ns.
+	ENV_CREATE(net_ns, ENV_TYPE_NS);
+#endif
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
@@ -74,7 +74,7 @@ i386_init(void)
 #else
 	// Touch all you want.
 
-	ENV_CREATE(user_icode, ENV_TYPE_USER);
+	ENV_CREATE(testtime, ENV_TYPE_USER);
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.

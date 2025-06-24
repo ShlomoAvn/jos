@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -525,6 +526,20 @@ sys_time_msec(void)
 	//panic("sys_time_msec not implemented");
 }
 
+int
+sys_e1000_transmit(const void *data, size_t len)
+{
+    // בדוק האם המצביע תקין (בתוך user space)
+    user_mem_assert(curenv, data, len, PTE_U);
+
+    // בדוק האם האורך סביר (לא גדול מדי)
+    if (len > TX_PKT_SIZE)
+        return -E_INVAL;
+
+    return e1000_transmit((void *)data, len);
+}
+
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -574,6 +589,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         		return sys_env_load_elf((struct Trapframe *)a1, (struct SegmentInfo *)a2);
 		case SYS_time_msec:
 			return sys_time_msec();
+		case SYS_e1000_transmit:
+			return sys_e1000_transmit((const void *)a1, (size_t)a2);
+			// This is a placeholder for the e1000 transmit syscall.
+			// You can implement it later.
 			
 	
 

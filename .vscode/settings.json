@@ -59,6 +59,8 @@
   "files.associations": {
     "syscall.h": "c",
     "lib.h": "c",
-    "new_sys_calls": "cpp"
+    "new_sys_calls": "cpp",
+    "memlayout.h": "c",
+    "x86.h": "c"
   }
 }
