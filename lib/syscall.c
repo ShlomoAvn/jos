@@ -135,3 +135,10 @@ sys_e1000_transmit(void *data, size_t len)
 {
     return syscall(SYS_e1000_transmit, 0, (uint32_t)data, len, 0, 0 , 0);
 }
+
+
+int
+sys_net_recv(void *buf, size_t len)
+{
+    return syscall(SYS_net_recv, 1, (uint32_t)buf, len, 0, 0, 0);
+}

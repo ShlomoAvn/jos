@@ -26,6 +26,8 @@ enum {
 	E_NOT_EXEC	,	// File not a valid executable
 	E_NOT_SUPP	,	// Operation not supported
     E_TX_FULL,
+	E_BUF_TOO_SMALL,
+	E_RX_EMPTY,
 	MAXERROR
 };
 

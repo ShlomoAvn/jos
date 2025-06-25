@@ -532,11 +532,45 @@ sys_e1000_transmit(const void *data, size_t len)
     // בדוק האם המצביע תקין (בתוך user space)
     user_mem_assert(curenv, data, len, PTE_U);
 
-    // בדוק האם האורך סביר (לא גדול מדי)
+
     if (len > TX_PKT_SIZE)
         return -E_INVAL;
 
     return e1000_transmit((void *)data, len);
+}
+
+// System call to receive a packet
+int
+sys_net_recv(void *dstva, size_t len)
+{
+    int result;
+    
+    // Check user pointer
+    user_mem_assert(curenv, dstva, len, PTE_W);
+    
+    // Try to receive packet immediately
+    result = e1000_rx_packet_nb(dstva, len);
+    
+    if (result != -E_RX_EMPTY) {
+        // Either got a packet or encountered an error
+        return result;
+    }
+    
+    // *** BLOCKING HAPPENS HERE ***
+    // No packet available - block the environment
+    recv_blocked_env = curenv;           // 1. Save which env is blocked
+    recv_syscall_dstva = (uint32_t)dstva; // 2. Save syscall arguments
+    recv_syscall_len = len;              //    (needed for later completion)
+    
+    // 3. Mark environment as not runnable (THIS IS THE ACTUAL BLOCKING)
+    curenv->env_status = ENV_NOT_RUNNABLE;
+    
+    // 4. Give up CPU to scheduler - environment won't run again until
+    //    interrupt handler sets env_status back to ENV_RUNNABLE
+    sched_yield();
+    
+    // This should never be reached due to sched_yield()
+    return -E_RX_EMPTY;
 }
 
 
@@ -593,6 +627,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_e1000_transmit((const void *)a1, (size_t)a2);
 			// This is a placeholder for the e1000 transmit syscall.
 			// You can implement it later.
+		case SYS_net_recv:
+			return sys_net_recv((void *)a1, (size_t)a2);
 			
 	
 

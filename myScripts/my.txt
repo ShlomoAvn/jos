@@ -39,3 +39,14 @@ To run info pg command you need patched (modified) version of qemu. We provide p
   Now go to the source directory of jos and run:
   $ export QEMU=$HOME/bin/bin/qemu-system-i386
   $ make qemu
+
+make E1000_DEBUG=TXERR,TX run-net_testoutput
+
+
+
+E1000_DEBUG=TX,TXERR ./i386-softmmu/qemu-system-i386 ...
+
+  export PATH=$HOME/bin/bin:$PATH
+
+
+  make E1000_DEBUG=TX,TXERR,RX,RXERR,RXFILTER run-net_testinput
