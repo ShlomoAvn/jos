@@ -30,7 +30,6 @@ input(envid_t ns_envid)
         
         // Receive packet from driver
         packet_len = sys_net_recv(packet_buffer, sizeof(packet_buffer));
-        hexdump("NS Input: Packet data: ", packet_buffer, packet_len);
         if (packet_len < 0) {
             continue;  // Error or no packet
         }
