@@ -18,16 +18,18 @@ output(envid_t ns_envid)
 
 	while (1) {
 		// Receive IPC message from network server
+		cprintf("[%08x] output: waiting for IPC from network server %08x\n", thisenv->env_id, ns_envid);
 		r = ipc_recv(&from_env, &nsipcbuf, &perm);
+		cprintf("[%08x] output: ipc_recv returned %d from %08x with perm %d\n", thisenv->env_id, r, from_env, perm);
 		if (r < 0) {
-			cprintf("output: ipc_recv failed: %e\n", r);
+			cprintf("[%08x] output: ipc_recv failed: %e\n", thisenv->env_id, r);
 			continue;
 		}
 
 		// Check if message is from the network server
 		if (from_env != ns_envid) {
-			cprintf("output: received IPC from wrong environment %08x (expected %08x)\n", 
-					from_env, ns_envid);
+			cprintf("[%08x] output: received IPC from wrong environment %08x (expected %08x)\n", 
+					ns_envid, from_env, ns_envid);
 			continue;
 		}
 
@@ -75,7 +77,7 @@ output_robust(envid_t ns_envid)
 	int retry_count;
 	const int MAX_RETRIES = 1000; // Maximum retries before giving up
 
-	cprintf("output: starting network output server\n");
+	cprintf("[%08x] output: starting network output server\n", ns_envid);
 
 	while (1) {
 		// Receive IPC message from network server
@@ -104,9 +106,9 @@ output_robust(envid_t ns_envid)
 			continue;
 		}
 
-		if (nsipcbuf.pkt.jp_len > PGSIZE - sizeof(struct jif_pkt)) {
+		if (nsipcbuf.pkt.jp_len > TX_PKT_SIZE) {
 			cprintf("output: packet too large %d bytes (max %d)\n", 
-					nsipcbuf.pkt.jp_len, PGSIZE - (int)sizeof(struct jif_pkt));
+					nsipcbuf.pkt.jp_len, TX_PKT_SIZE);
 			continue;
 		}
 

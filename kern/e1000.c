@@ -11,14 +11,16 @@
 // Global variables
 static volatile uint32_t *e1000_reg_base;  // Memory-mapped registers base address
 
+
+
 // Transmit structures
 static struct tx_desc tx_desc_array[TX_RING_SIZE] __attribute__((aligned(128)));
 static char tx_pkt_bufs[TX_RING_SIZE][TX_PKT_SIZE];
 static uint32_t tx_desc_tail = 0;
 
 // Receive structures  
-static struct rx_desc rx_desc_array[RX_RING_SIZE] __attribute__((aligned(128)));
-static char rx_pkt_bufs[RX_RING_SIZE][TX_PKT_SIZE];
+static struct rx_desc rx_desc_array[RX_RING_SIZE] __attribute__((aligned(16)));
+static char rx_pkt_bufs[RX_RING_SIZE][2048];
 static uint32_t rx_desc_tail = 0;
 
 int e1000_irq = -1; // IRQ line for E1000 device
@@ -41,6 +43,14 @@ static void
 e1000_write_reg(uint32_t reg, uint32_t value)
 {
     e1000_reg_base[reg / 4] = value;
+}
+
+static int
+e1000_rx_packet_available(void)
+{
+    struct rx_desc *desc = &rx_desc_array[(rx_desc_tail + 1) % RX_RING_SIZE];
+    //cprintf("desc->status & 0x01: %x\n", desc->status & 0x01);
+    return (desc->status & 0x01) != 0;
 }
 
 // Initialize E1000 device
@@ -128,6 +138,11 @@ e1000_init_rx(void)
     e1000_write_reg(E1000_RDBAL, PADDR(rx_desc_array));
     e1000_write_reg(E1000_RDBAH, 0);
     
+    // Low 32 bits: 52:54:00:12 (note byte order!)
+    e1000_write_reg(E1000_RAL, 0x12005452);
+// High 16 bits: 34:56 + Address Valid bit
+    e1000_write_reg(E1000_RAH, 0x00005634 | E1000_RAH_AV);
+
     cprintf("E1000: Receive descriptor base address set to %08x\n", PADDR(rx_desc_array));
 
     // Set receive descriptor length
@@ -137,25 +152,36 @@ e1000_init_rx(void)
     e1000_write_reg(E1000_RDH, 0);
     e1000_write_reg(E1000_RDT, RX_RING_SIZE - 1); // Tail points to last available descriptor
     rx_desc_tail = RX_RING_SIZE - 1;
+    //cprintf("E1000 rx_desc_tail initialized to %d\n", rx_desc_tail);
     
     // Configure RCTL register
     // EN: Enable receive
     // BAM: Broadcast Accept Mode
     // BSIZE: Buffer size (2048 bytes)
     // SECRC: Strip Ethernet CRC
-    uint32_t rctl = (1 << 1) |    // EN
-                    (1 << 15) |   // BAM
-                    (0 << 16) |   // BSIZE = 2048
-                    (1 << 26);    // SECRC
+    uint32_t rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SECRC | E1000_RCTL_SZ_2048; // Set buffer size to 2048 bytes
+    // uint32_t rctl = (1 << 1) |    // EN
+    //                 (1 << 15) |   // BAM
+    //                 (0 << 16) |   // BSIZE = 2048
+    //                 (1 << 26);    // SECRC
     e1000_write_reg(E1000_RCTL, rctl);
-    
-// Enable receive interrupts
-    e1000_write_reg(E1000_IMS, 
-        E1000_ICR_RXT0 |       // Receiver timer interrupt
-        E1000_ICR_RXDMT0 |     // Receive descriptor minimum threshold
-        E1000_ICR_TXDW);       // Also enable transmit interrupts
+    cprintf("E1000: RCTL set to %08x\n", rctl);
+    //e1000_write_reg(E1000_IMS, E1000_ICR_RXT0);
+    e1000_write_reg(E1000_IMS, E1000_ICR_RXT0 | E1000_ICR_RXDMT0 | E1000_ICR_TXDW | E1000_ICR_RXO | E1000_ICR_RXSEQ | E1000_ICR_LSC);
+
 
     cprintf("E1000: Receive initialized\n");
+}
+
+physaddr_t
+user_va_to_pa(volatile struct Env *env, void *va) {
+    pte_t *pte = NULL;
+    struct PageInfo *pp = page_lookup(env->env_pgdir, va, &pte);
+    if (!pp || !pte || !(*pte & PTE_P)) {
+        panic("user_va_to_pa: Address %p not mapped in env %08x\n", va, env->env_id);
+    }
+    physaddr_t pa = (PTE_ADDR(*pte)) | ((uintptr_t)va & 0xFFF);
+    return pa;
 }
 
 // Transmit a packet
@@ -193,95 +219,194 @@ e1000_transmit(const void *data, size_t len)
     
     return 0;
 }
+static void
+hexdump(const char *prefix, const void *data, int len)
+{
+	int i;
+	char buf[80];
+	char *end = buf + sizeof(buf);
+	char *out = NULL;
+	for (i = 0; i < len; i++) {
+		if (i % 16 == 0)
+			out = buf + snprintf(buf, end - buf,
+					     "%s%04x   ", prefix, i);
+		out += snprintf(out, end - out, "%02x", ((uint8_t*)data)[i]);
+		if (i % 16 == 15 || i == len - 1)
+			cprintf("%.*s\n", out - buf, buf);
+		if (i % 2 == 1)
+			*(out++) = ' ';
+		if (i % 16 == 7)
+			*(out++) = ' ';
+	}
+}
+
+
+// Get transmit queue status for debugging
+void
+e1000_rx_status(void)
+{
+    uint32_t head = e1000_read_reg(E1000_RDH);
+    uint32_t tail = e1000_read_reg(E1000_RDT);
+
+    
+    cprintf("E1000 TX: head=%d, tail=%d, sw_tail=%d\n", 
+            head, tail, rx_desc_tail);
+
+    // Print descriptor status
+    int i;
+    for (i = 0; i < 6; i++) {
+        if (rx_desc_array[i].status & E1000_RXD_STAT_DD) {
+            cprintf("  desc[%d] at addr %p: DONE\n", i, rx_desc_array[i].addr);
+        } else {
+            cprintf("  desc[%d] at addr %p: PENDING\n", i, rx_desc_array[i].addr);
+        }
+    }
+}
+
+void
+e1000_tx_status(void)
+{
+    uint32_t head = e1000_read_reg(E1000_TDH);
+    uint32_t tail = e1000_read_reg(E1000_TDT);
+
+    
+    cprintf("E1000 TX: head=%d, tail=%d, sw_tail=%d\n", 
+            head, tail, tx_desc_tail);
+
+    // Print descriptor status
+    int i;
+    for (i = 0; i < TX_RING_SIZE; i++) {
+        if (tx_desc_array[i].status & E1000_TXD_STAT_DD) {
+            cprintf("  desc[%d] at addr %p: DONE\n", i, tx_desc_array[i].addr);
+        } else {
+            cprintf("  desc[%d] at addr %p: PENDING\n", i, tx_desc_array[i].addr);
+        }
+    }
+}
+
 
 // Receive a packet
 int
-e1000_rx(void *data, size_t *len)
+e1000_rx(void *data, size_t len)
 {
     // Calculate next descriptor to check
+    //cprintf("E1000 rx_desc_tail is %d\n", rx_desc_tail);
     uint32_t next_tail = (rx_desc_tail + 1) % RX_RING_SIZE;
+    cprintf("E1000 rx: Checking descriptor %d\n", next_tail);
     struct rx_desc *desc = &rx_desc_array[next_tail];
-    
+    //cprintf("e1000_rx: Checking descriptor %d, status %x\n", next_tail, desc->status);
     // Check if packet is available
     if (!(desc->status & 0x01)) { // DD bit
         // No packet available
+        //cprintf("e1000_rx: No packet available in descriptor %d\n", next_tail);
         return -E_RX_EMPTY;
     }
     
     // Copy packet data
     size_t pkt_len = desc->length;
-    if (pkt_len > *len) {
+    //cprintf("E1000 rx: Received packet of length %d len size: %d\n", pkt_len, len);
+    if (pkt_len > len) {
         return -E_BUF_TOO_SMALL;
     }
-    
+    //cprintf("E1000 rx: Copying packet data to user buffer\n");
+
+    ///TODO: Check if pkt_len is valid 
+    //cprintf("E1000 rx: Copying %d bytes to user buffer at %p\n", pkt_len, data);
     memcpy(data, rx_pkt_bufs[next_tail], pkt_len);
-    *len = pkt_len;
+    __asm__ volatile ("" ::: "memory");
+    //hexdump("E1000: Received packet data: ", data, pkt_len);
+    //cprintf("E1000 rx: Packet data copied successfully\n");
+    len = pkt_len;
     
     // Clear descriptor status for reuse
     desc->status = 0;
     
+    //cprintf("E1000 rx: Received packet of length %d from descriptor %d\n", len, next_tail);
     // Update tail pointer and notify hardware
     rx_desc_tail = next_tail;
-    e1000_write_reg(E1000_RDT, rx_desc_tail);
-    
-    return 0;
+    e1000_write_reg(E1000_RDT, next_tail);
+
+    //cprintf("E1000 rx: pkt_len = %d, rx_desc_tail = %d\n", pkt_len, rx_desc_tail);
+    return pkt_len; // Return length of received packet
 }
+
 
 // E1000 interrupt handler
 void
 e1000_intr(void)
 {
     uint32_t icr;
-    
+    cprintf ("E1000 245: Interrupt received\n");
     // Read interrupt cause register (this also clears it)
-    icr = e1000_read_reg(E1000_ICR);
+    icr = e1000_read_reg(E1000_ICR);    
     
     // Handle receive interrupts
     if (icr & (E1000_ICR_RXT0 | E1000_ICR_RXDMT0)) {
         // Check if there's an environment blocked on receive
+      //  cprintf("E1000 252: Receive interrupt\n");
         if (recv_blocked_env && e1000_rx_packet_available()) {
-            int result = e1000_rx_packet_nb((void *)recv_syscall_dstva, recv_syscall_len);
-            
-            // Set return value and mark environment as runnable
-            recv_blocked_env->env_tf.tf_regs.reg_eax = result;
-            recv_blocked_env->env_status = ENV_RUNNABLE;
-            
-            // Clear blocked environment
-            recv_blocked_env = NULL;
-        }
+            // Receive packet into kernel buffer
+            int result = e1000_rx(kernel_rx_buffer, sizeof(kernel_rx_buffer));
+            //hexdump("E1000: Received packet data: ", kernel_rx_buffer, result);
+            if (result > 0) {
+                cprintf("E1000: Received %d bytes, waking up blocked environment\n", result);
+                
+                // Store result for syscall to copy later
+                recv_result_len = result;
+                
+                // Set return value and mark environment as runnable
+                physaddr_t phys_addr = user_va_to_pa(recv_blocked_env, (void *)recv_syscall_dstva);
+                //void *virt_addr_ptr = KADDR(phys_addr);
+                memmove((void *)KADDR(phys_addr), kernel_rx_buffer, result);
+                recv_blocked_env->env_tf.tf_regs.reg_eax = result;
+                recv_blocked_env->env_status = ENV_RUNNABLE;
+                
+                // Clear blocked environment
+                recv_blocked_env = NULL;
+            } else {
+                cprintf("E1000: Failed to receive packet, result = %d\n", result);
+            }
     }
+}
     
     // Handle transmit interrupts
     if (icr & E1000_ICR_TXDW) {
+        //cprintf("E1000 267: Transmit done interrupt\n");
         // Wake up any environment blocked on transmit, if applicable
         if (transmit_blocked_env) {
+            int result = e1000_transmit((const void *)transmit_syscall_dstva, transmit_syscall_len);
             transmit_blocked_env->env_tf.tf_regs.reg_eax = 0; // Success
             transmit_blocked_env->env_status = ENV_RUNNABLE;
             transmit_blocked_env = NULL;
         }
      }
-    
+    cprintf("E1000 275: Interrupt handled, clearing EOI\n");
     // Clear interrupt on LAPIC
-    lapic_eoi();
+    //lapic_eoi();
 }
 
-// Get transmit queue status for debugging
-void
-e1000_tx_status(void)
-{
-    uint32_t head = e1000_read_reg(E1000_TDH);
-    uint32_t tail = e1000_read_reg(E1000_TDT);
+void print_all_status_rx(void) {
+    cprintf("E1000 RX Status:\n");
+    cprintf("  Head: %d, Tail: %d, Software Tail: %d\n", 
+            e1000_read_reg(E1000_RDH), e1000_read_reg(E1000_RDT), rx_desc_tail);
     
-    cprintf("E1000 TX: head=%d, tail=%d, sw_tail=%d\n", 
-            head, tail, tx_desc_tail);
-    
-    // Print descriptor status
+    // Print each descriptor's status
     int i;
-    for (i = 0; i < TX_RING_SIZE; i++) {
-        if (tx_desc_array[i].status & E1000_TXD_STAT_DD) {
-            cprintf("  desc[%d]: DONE\n", i);
-        } else {
-            cprintf("  desc[%d]: PENDING\n", i);  
-        }
+    cprintf("  sizeof(void*) = %d and sizeof(rx_desc_array[i].addr) = %d\n", 
+            sizeof(void*), sizeof(rx_desc_array[0].addr)); 
+    for (i = 0; i < 7; i++) {
+        cprintf("  Descriptor %d: addr=%08x, length=%d, status=%02x\n", 
+                i, KADDR(rx_desc_array[i].addr), rx_desc_array[i].length, rx_desc_array[i].status);
     }
+}
+
+
+void e1000_set_recv_blocked_env(struct Env *env, uintptr_t dstva, size_t len) {
+    recv_syscall_dstva = dstva;
+    recv_blocked_env = env;
+    recv_syscall_len = len;
+}
+
+struct Env *e1000_get_recv_blocked_env(void) {
+    return (struct Env *)recv_blocked_env;
 }

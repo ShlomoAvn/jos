@@ -2,6 +2,7 @@
 #include <inc/x86.h>
 #include <inc/assert.h>
 
+#include <kern/e1000.h>
 #include <kern/pmap.h>
 #include <kern/trap.h>
 #include <kern/console.h>
@@ -143,7 +144,7 @@ trap_init(void)
 	SETGATE(idt[IRQ_OFFSET + 14], 0, GD_KT, primary_ata_handler, 0);
 	void secondary_ata_handler();
 	SETGATE(idt[IRQ_OFFSET + 15], 0, GD_KT, secondary_ata_handler, 0);
-	// Per-CPU setup 
+
 	trap_init_percpu();
 }
 
@@ -240,6 +241,9 @@ print_regs(struct PushRegs *regs)
 static void
 trap_dispatch(struct Trapframe *tf)
 {
+	
+	//cprintf("trap_dispatch: e1000_irq is %d\n", e1000_irq);
+	//cprintf("trap_dispatch: trapno %d\n", tf->tf_trapno);
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	if (tf->tf_trapno==T_PGFLT)
@@ -295,20 +299,25 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 
-
-	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
-		lapic_eoi();
-		sched_yield();
-		return;
-	}
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
 		kbd_intr();
+		lapic_eoi();
 		return;
 	}
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL) {
 		serial_intr();
+		lapic_eoi();
+		return;
+	}
+	if(tf->tf_trapno == IRQ_OFFSET + e1000_irq){
+		cprintf("E1000 interrupt received in trap.c\n");
+		e1000_intr();
+		cprintf("E1000 interrupt handled in trap.c\n");
+		lapic_eoi();
+		irq_eoi();
+		//sched_yield();
 		return;
 	}
 

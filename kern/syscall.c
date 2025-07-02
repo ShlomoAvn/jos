@@ -13,6 +13,8 @@
 #include <kern/sched.h>
 #include <kern/time.h>
 #include <kern/e1000.h>
+#include "picirq.h"
+
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -434,6 +436,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			return -E_INVAL;
 
 		if ((uintptr_t)e->env_ipc_dstva < UTOP) {
+			cprintf("sys_ipc_try_send: srcva=%08x, dstva=%08x, perm=%08x\n", 
+				(uintptr_t)srcva, (uintptr_t)e->env_ipc_dstva, perm);
 			if (page_insert(e->env_pgdir, pp, e->env_ipc_dstva, perm) < 0)
 				return -E_NO_MEM;
 			e->env_ipc_perm = perm;
@@ -509,10 +513,10 @@ sys_ipc_recv(void *dstva)
 	// LAB 4: Your code here.
 	if (((uintptr_t)dstva < UTOP) && PGOFF(dstva))
 		return -E_INVAL;
-
 	curenv->env_ipc_recving = 1;
 	curenv->env_ipc_dstva = dstva;
 	curenv->env_status = ENV_NOT_RUNNABLE;
+	//cprintf("sys_ipc_recv: blocking environment %08x\n", curenv->env_id);
 	sched_yield();
 	return 0;
 }
@@ -529,38 +533,33 @@ sys_time_msec(void)
 int
 sys_e1000_transmit(const void *data, size_t len)
 {
+	cprintf("sys_e1000_transmit: data=%p, len=%d\n", data, len);
+	//print_all_status_rx();
     // בדוק האם המצביע תקין (בתוך user space)
+	 cprintf("SYS_TRANSMIT: len=%d, first bytes: %02x %02x %02x %02x\n", 
+            len, ((char*)data)[0], ((char*)data)[1], ((char*)data)[2], ((char*)data)[3]);
     user_mem_assert(curenv, data, len, PTE_U);
 
-
+	cprintf("sys_e1000_transmit: trying to transmit packet of length %d\n", len);
     if (len > TX_PKT_SIZE)
         return -E_INVAL;
 
-    return e1000_transmit((void *)data, len);
-}
-
-// System call to receive a packet
-int
-sys_net_recv(void *dstva, size_t len)
-{
-    int result;
-    
-    // Check user pointer
-    user_mem_assert(curenv, dstva, len, PTE_W);
-    
-    // Try to receive packet immediately
-    result = e1000_rx_packet_nb(dstva, len);
-    
-    if (result != -E_RX_EMPTY) {
+    int result = e1000_transmit((void *)data, len);
+	if (result != -E_TX_FULL) {
         // Either got a packet or encountered an error
         return result;
     }
-    
-    // *** BLOCKING HAPPENS HERE ***
+	cprintf("sys_e1000_transmit: transmit queue full, blocking...\n");
+
+	// If we reach here, the transmit queue is full and we need to block
+	// the environment until space is available.
+	
+	// Save the current environment and syscall arguments for later completion
+	// *** BLOCKING HAPPENS HERE ***
     // No packet available - block the environment
-    recv_blocked_env = curenv;           // 1. Save which env is blocked
-    recv_syscall_dstva = (uint32_t)dstva; // 2. Save syscall arguments
-    recv_syscall_len = len;              //    (needed for later completion)
+    transmit_blocked_env = curenv;           // 1. Save which env is blocked
+    transmit_syscall_dstva = (uint32_t)data; // 2. Save syscall arguments
+    transmit_syscall_len = len;              //    (needed for later completion)
     
     // 3. Mark environment as not runnable (THIS IS THE ACTUAL BLOCKING)
     curenv->env_status = ENV_NOT_RUNNABLE;
@@ -570,7 +569,42 @@ sys_net_recv(void *dstva, size_t len)
     sched_yield();
     
     // This should never be reached due to sched_yield()
-    return -E_RX_EMPTY;
+    return -E_TX_FULL;
+}
+
+int sys_net_recv(void *data, size_t len)
+{
+	//print_all_status_rx();
+    user_mem_assert(curenv, data, len, PTE_W);
+    
+    // Try immediate receive
+    int result = e1000_rx(data, len);
+    if (result != -E_RX_EMPTY) {
+		cprintf("sys_net_recv: received packet immediately, len=%d\n", result);
+        return result;
+    }
+    
+    // Convert virtual address to physical for interrupt handler
+//    physaddr_t phys_addr = PADDR(data);  // Convert to physical
+	//physaddr_t phys_addr = PADDR(data);
+    e1000_set_recv_blocked_env(curenv, (uintptr_t)data, len);
+     while (e1000_get_recv_blocked_env() == curenv) {
+		cprintf("sys_net_recv: no packet available, blocking...\n");
+		if (irq_mask_8259A & (1 << e1000_irq)) {
+    cprintf("E1000 IRQ %d is masked (disabled) in PIC\n", e1000_irq);
+} else {
+    cprintf("E1000 IRQ %d is unmasked (enabled) in PIC\n", e1000_irq);
+}
+		curenv->env_status = ENV_NOT_RUNNABLE;
+		sched_yield();
+	 }
+	 cprintf("sys_net_recv: received packet, copying data...\n");
+    memmove(data, kernel_rx_buffer, recv_result_len);
+    result = recv_result_len;
+    recv_result_len = 0;
+    return result;
+
+    //return curenv->env_tf.tf_regs.reg_eax;
 }
 
 
@@ -625,8 +659,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_time_msec();
 		case SYS_e1000_transmit:
 			return sys_e1000_transmit((const void *)a1, (size_t)a2);
-			// This is a placeholder for the e1000 transmit syscall.
-			// You can implement it later.
 		case SYS_net_recv:
 			return sys_net_recv((void *)a1, (size_t)a2);
 			

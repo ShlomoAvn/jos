@@ -118,10 +118,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, int perm)
 }
 
 int
-sys_ipc_recv(void *dstva)
+sys_ipc_recv(void *data)
 {
 	
-	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
+	return syscall(SYS_ipc_recv, 1, (uint32_t)data, 0, 0, 0, 0);
 }
 
 unsigned int
@@ -136,9 +136,10 @@ sys_e1000_transmit(void *data, size_t len)
     return syscall(SYS_e1000_transmit, 0, (uint32_t)data, len, 0, 0 , 0);
 }
 
-
 int
 sys_net_recv(void *buf, size_t len)
 {
-    return syscall(SYS_net_recv, 1, (uint32_t)buf, len, 0, 0, 0);
+    return syscall(SYS_net_recv, 0, (uint32_t)buf, len, 0, 0, 0);
 }
+
+

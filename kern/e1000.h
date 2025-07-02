@@ -23,9 +23,26 @@
 #define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
 #define E1000_ICR_RXDMT0        0x00000010 /* rx desc min. threshold (0) */
 #define E1000_ICR_TXDW          0x00000001 /* Transmit desc written back */
+#define E1000_ICR_SRPD          0x00010000
+#define E1000_ICR_RXO           0x00000040 /* rx overrun */
+#define E1000_ICR_RXSEQ         0x00000008 /* rx sequence error */
+#define E1000_ICR_LSC           0x00000004 /* Link Status Change */
+
 
 #define E1000_ICR      0x000C0  /* Interrupt Cause Read - R/clr */
 
+#define E1000_RAL       0x05400  /* Receive Address - RW Array */
+#define E1000_RAH       0x05404  /* Receive Address - RW Array */
+#define E1000_RAH_AV  0x80000000        /* Receive descriptor valid */
+
+#define E1000_RCTL_SZ_2048        0x00000000    /* rx buffer size 2048 */
+
+//#define E1000_RCTL_BSIZE_2048   (0 << 16)   // 2048 byte buffers
+#define E1000_RCTL_BSIZE_4096   ((3 << 16) | (1 << 25))
+#define E1000_RCTL_BSIZE_8192   ((2 << 16) | (1 << 25))
+#define E1000_RCTL_BSIZE_16384  ((1 << 16) | (1 << 25))
+
+#define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
 
 #define E1000_TDLEN    0x03808
 #define E1000_TDBAL    0x03800  /* TX Descriptor Base Address Low - RW */
@@ -39,6 +56,8 @@
 #define E1000_RDLEN    0x02808  // Receive Descriptor Length
 #define E1000_RDH      0x02810  // Receive Descriptor Head
 #define E1000_RDT      0x02818  // Receive Descriptor Tail
+#define E1000_RDTR     0x02820  /* RX Delay Timer - RW */
+#define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 
 
 #define E1000_TCTL_PSP    0x00000008    /* pad short packets */
@@ -46,6 +65,9 @@
 #define E1000_TCTL_COLD   0x003ff000    /* collision distance */
 #define E1000_TCTL_CT_SHIFT    4  
 #define E1000_TCTL_COLD_SHIFT  12
+
+#define E1000_RCTL_BAM            0x00008000    /* broadcast enable */
+#define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
 
 //#define E1000_TXD_CMD_EOP    0x01000000 /* End of Packet */
@@ -60,9 +82,18 @@
 #define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
 
 // Environment blocked on receive
-static struct Env *recv_blocked_env = NULL;
+volatile static struct Env *recv_blocked_env = NULL;
 static uint32_t recv_syscall_dstva;
 static size_t recv_syscall_len;
+
+volatile static struct Env *transmit_blocked_env = NULL;
+static uint32_t transmit_syscall_dstva;
+static size_t transmit_syscall_len;
+
+static char kernel_rx_buffer[2048];
+static int recv_result_len = 0;  
+
+extern int e1000_irq; 
 
 struct tx_desc {
     uint64_t addr;      // Buffer physical address
@@ -87,16 +118,22 @@ struct rx_desc {
 // int e1000_attach(struct pci_func *pcif);
 // int e1000_transmit(void *data, size_t len);
 
-int e1000_rx(void *data, size_t *len);
+int e1000_rx(void *data, size_t len);
 // void e1000_init_tx(void);
 // void e1000_init_rx(void);
-void e1000_tx_status(void);
+void e1000_rx_status(void);
 // void e1000_rx_status(void);
 // void e1000_write_reg(uint32_t reg, uint32_t value);
 // uint32_t e1000_read_reg(uint32_t reg);
 int e1000_attach(struct pci_func *pcif);
 int e1000_transmit(const void *data, size_t len);
-//int e1000_rx(void *data, size_t *len);
+void e1000_intr(void);
+
+void e1000_set_recv_blocked_env(struct Env *env, uintptr_t dstva, size_t len);
+struct Env *e1000_get_recv_blocked_env(void);
+void print_all_status_rx(void);
+void print_icr(void);
+
 
 #endif	// JOS_KERN_E1000_H
 
