@@ -58,13 +58,17 @@
 #define E1000_RDT      0x02818  // Receive Descriptor Tail
 #define E1000_RDTR     0x02820  /* RX Delay Timer - RW */
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
-
+#define E1000_MAC_SIZE 6
 
 #define E1000_TCTL_PSP    0x00000008    /* pad short packets */
 #define E1000_TCTL_CT     0x00000ff0    /* collision threshold */
 #define E1000_TCTL_COLD   0x003ff000    /* collision distance */
 #define E1000_TCTL_CT_SHIFT    4  
 #define E1000_TCTL_COLD_SHIFT  12
+
+#define E1000_EERD    0x00014
+#define E1000_EERD_START (1 << 0)
+#define E1000_EERD_DONE  (1 << 4)
 
 #define E1000_RCTL_BAM            0x00008000    /* broadcast enable */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
@@ -133,7 +137,7 @@ void e1000_set_recv_blocked_env(struct Env *env, uintptr_t dstva, size_t len);
 struct Env *e1000_get_recv_blocked_env(void);
 void print_all_status_rx(void);
 void print_icr(void);
-
+void e1000_get_mac(uint8_t *mac);
 
 #endif	// JOS_KERN_E1000_H
 

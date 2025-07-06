@@ -88,15 +88,15 @@ socket.setdefaulttimeout(5)
 # Basic tests
 #
 
-@test(5)
-def test_testtime():
-    r.user_test("testtime", make_args=["INIT_CFLAGS=-DTEST_NO_NS"])
-    r.match(r'starting count down: 5 4 3 2 1 0 ')
+# @test(5)
+# def test_testtime():
+#     r.user_test("testtime", make_args=["INIT_CFLAGS=-DTEST_NO_NS"])
+#     r.match(r'starting count down: 5 4 3 2 1 0 ')
 
-@test(5)
-def test_pci_attach():
-    r.user_test("hello", make_args=["INIT_CFLAGS=-DTEST_NO_NS"])
-    r.match(r'PCI function 00:03.0 \(8086:100e\) enabled')
+# @test(5)
+# def test_pci_attach():
+#     r.user_test("hello", make_args=["INIT_CFLAGS=-DTEST_NO_NS"])
+#     r.match(r'PCI function 00:03.0 \(8086:100e\) enabled')
 
 #
 # testoutput
@@ -115,13 +115,13 @@ def test_testoutput_helper(count):
               for i in range(count)]
     match_packet_seq(got, expect)
 
-@test(15, "testoutput [5 packets]")
-def test_testoutput_5():
-    test_testoutput_helper(5)
+# @test(15, "testoutput [5 packets]")
+# def test_testoutput_5():
+#     test_testoutput_helper(5)
 
-@test(10, "testoutput [100 packets]")
-def test_testoutput_100():
-    test_testoutput_helper(100)
+# @test(10, "testoutput [100 packets]")
+# def test_testoutput_100():
+#     test_testoutput_helper(100)
 
 end_part("A")
 

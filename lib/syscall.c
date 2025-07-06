@@ -143,3 +143,8 @@ sys_net_recv(void *buf, size_t len)
 }
 
 
+int sys_get_mac(uint8_t *mac_store)
+{
+	return syscall(SYS_get_mac, 0, (uint32_t)mac_store, 0, 0, 0, 0);
+}
+

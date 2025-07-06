@@ -521,6 +521,18 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+int
+sys_get_mac(uint8_t *mac_store)
+{
+	user_mem_assert(curenv, mac_store, E1000_MAC_SIZE, PTE_U | PTE_P);
+	
+	
+
+	// Get the MAC address and store it in mac_store
+	e1000_get_mac(mac_store); 
+    return 0;
+}
+
 // Return the current time.
 static int
 sys_time_msec(void)
@@ -661,6 +673,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_e1000_transmit((const void *)a1, (size_t)a2);
 		case SYS_net_recv:
 			return sys_net_recv((void *)a1, (size_t)a2);
+		case SYS_get_mac:
+			return sys_get_mac((uint8_t *)a1);
 			
 	
 

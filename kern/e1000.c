@@ -5,13 +5,14 @@
 #include <kern/picirq.h>
 #include <inc/string.h>
 #include <inc/error.h>
+
 // Transmit descriptor structure (from Intel manual table 3-8)
 
 
 // Global variables
 static volatile uint32_t *e1000_reg_base;  // Memory-mapped registers base address
 
-
+static uint8_t mac[E1000_MAC_SIZE];
 
 // Transmit structures
 static struct tx_desc tx_desc_array[TX_RING_SIZE] __attribute__((aligned(128)));
@@ -30,6 +31,40 @@ static void
 e1000_init_tx(void);
 static void
 e1000_init_rx(void);
+
+
+uint16_t
+e1000_eeprom_read(uint16_t addr)
+{
+    e1000_reg_base[E1000_EERD / 4] = (addr << 8) | E1000_EERD_START;
+
+    while (!(e1000_reg_base[E1000_EERD / 4] & E1000_EERD_DONE))
+        ;
+
+    return (e1000_reg_base[E1000_EERD / 4] >> 16) & 0xFFFF;
+}
+
+void
+e1000_read_mac(uint8_t *mac)
+{
+    uint16_t word;
+
+    word = e1000_eeprom_read(0);
+    mac[0] = word & 0xFF;
+    mac[1] = (word >> 8) & 0xFF;
+
+    word = e1000_eeprom_read(1);
+    mac[2] = word & 0xFF;
+    mac[3] = (word >> 8) & 0xFF;
+
+    word = e1000_eeprom_read(2);
+    mac[4] = word & 0xFF;
+    mac[5] = (word >> 8) & 0xFF;
+}
+void e1000_get_mac(uint8_t *mac1){
+    memmove(mac1, mac, 6);
+}
+
 
 // Helper function to read E1000 register
 static uint32_t
@@ -68,7 +103,8 @@ e1000_attach(struct pci_func *pcif)
     
     // Initialize receive
     e1000_init_rx();
-    
+    cprintf("E1000: MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     irq_setmask_8259A(irq_mask_8259A & ~(1 << e1000_irq));
     cprintf("E1000: Initialized successfully\n");
     return 0;
@@ -138,10 +174,16 @@ e1000_init_rx(void)
     e1000_write_reg(E1000_RDBAL, PADDR(rx_desc_array));
     e1000_write_reg(E1000_RDBAH, 0);
     
-    // Low 32 bits: 52:54:00:12 (note byte order!)
-    e1000_write_reg(E1000_RAL, 0x12005452);
-// High 16 bits: 34:56 + Address Valid bit
-    e1000_write_reg(E1000_RAH, 0x00005634 | E1000_RAH_AV);
+    
+    e1000_read_mac(mac);
+
+    // Set Receive Address Low and High registers
+    uint32_t ral = mac[0] | (mac[1] << 8) | (mac[2] << 16) | (mac[3] << 24);
+    uint32_t rah = mac[4] | (mac[5] << 8);
+
+    // Write the MAC address to the Receive Address Low and High registers
+    e1000_write_reg(E1000_RAL, ral);
+    e1000_write_reg(E1000_RAH, rah | E1000_RAH_AV);
 
     cprintf("E1000: Receive descriptor base address set to %08x\n", PADDR(rx_desc_array));
 

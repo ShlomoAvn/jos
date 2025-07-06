@@ -76,8 +76,20 @@ send_header(struct http_request *req, int code)
 static int
 send_data(struct http_request *req, int fd)
 {
-	// LAB 6: Your code here.
-	panic("send_data not implemented");
+	// Read data from the file descriptor and send it to the socket
+	char buf[BUFFSIZE];
+    int n;
+
+    while ((n = read(fd, buf, BUFFSIZE)) > 0) {
+        int sent = 0;
+        while (sent < n) {
+            int w = write(req->sock, buf + sent, n - sent);
+            if (w < 0)
+                return -1;
+            sent += w;
+        }
+    }
+    return (n < 0) ? -1 : 0;
 }
 
 static int
@@ -213,17 +225,49 @@ send_error(struct http_request *req, int code)
 static int
 send_file(struct http_request *req)
 {
-	int r;
-	off_t file_size = -1;
-	int fd;
-
 	// open the requested url for reading
 	// if the file does not exist, send a 404 error using send_error
 	// if the file is a directory, send a 404 error using send_error
 	// set file_size to the size of the file
+	int r = -1;
+    off_t file_size = -1;
+    int fd = -1;
+    struct Stat st;
 
-	// LAB 6: Your code here.
-	panic("send_file not implemented");
+    // Remove leading '/' from URL if present
+    char *path = req->url;
+    if (path[0] == '/')
+        path++;
+
+    // Default to index.html if empty path
+    // if (path[0] == '\0')
+    //     path = "index.html";
+
+    // Try to open the file
+    fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        send_error(req, 404);
+        return -1;
+    }
+
+    // Stat the file
+    if (fstat(fd, &st) < 0) {
+        close(fd);
+        send_error(req, 404);
+        return -1;
+    }
+
+    // Check if it's a directory
+    if (st.st_isdir) {
+        close(fd);
+        send_error(req, 404);
+        return -1;
+    }
+
+    file_size = st.st_size;
+
+
+	//panic("send_file not implemented");
 
 	if ((r = send_header(req, 200)) < 0)
 		goto end;
