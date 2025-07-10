@@ -15,7 +15,6 @@ announce(void)
 	// for this, but QEMU's ARP implementation is dumb and only
 	// listens for very specific ARP requests, such as requests
 	// for the gateway IP.
-
 	uint8_t mac[6];
 	sys_get_mac(mac);
 	uint32_t myip = inet_addr(IP);

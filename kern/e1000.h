@@ -15,7 +15,7 @@
 #define E1000_TCTL_EN  0x00000002
 #define E1000_RCTL_EN  0x00000002
 
-#define TX_RING_SIZE 32
+#define TX_RING_SIZE 64
 #define TX_PKT_SIZE 1518
 #define RX_RING_SIZE    128   // Number of receive descriptors
 

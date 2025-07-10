@@ -3,7 +3,7 @@
 #include <inc/error.h>
 #include "ns.h"
 
-#define N_TX_BUFFERS 32
+#define N_TX_BUFFERS 64 // Number of transmit buffers
 #define BUF_SIZE  2048 // Size of each transmit buffer, must be large enough for largest packet
 
 static int last_freed = (N_TX_BUFFERS - 1) % N_TX_BUFFERS; // Last index used for transmission

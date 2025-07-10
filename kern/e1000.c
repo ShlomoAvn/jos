@@ -444,8 +444,8 @@ struct Env *e1000_get_recv_blocked_env(void) {
 void e1000_set_recv_buffers(struct Env *env, uintptr_t dstva, size_t len) {
     //set the buffers to be physical addresses of va dstva
     int i =0;
-    for (i = 0; i < 128; i++) {
-        physaddr_t pa = user_va_to_pa(env, (void *)dstva + i * 2048);
+    for (i = 0; i < RX_RING_SIZE; i++) {
+        physaddr_t pa = user_va_to_pa(env, (void *)dstva + i * len);
         rx_desc_array[i].addr = pa;
     }
     zero_copy = 1; // Enable zero-copy mode
