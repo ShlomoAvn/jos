@@ -1,0 +1,30 @@
+1. How did you structure your transmit implementation? In particular, what do you do if the transmit ring is full?
+
+
+In my implementation, when a packet is received in output.c, I call sys_e1000_transmit, which in turn calls e1000_transmit. This function attempts to send the packet by writing it to the E1000’s transmit ring buffer if space is available. If the transmission succeeds, the tail pointer is updated and the next packet is processed.
+However, if the transmit ring is full, I mark the current environment as ENV_NOT_RUNNABLE and yield the CPU. Before doing so, I save the packet and the environment’s ID in a dedicated structure. Later, when an interrupt signals that a packet has been sent, the interrupt handler will attempt to retry the transmission by calling e1000_transmit again using the previously saved packet.
+
+
+2. How did you structure your receive implementation? In particular, what do you do if the receive queue is empty and a user environment requests the next 
+incoming packet?
+
+
+My receive implementation is structured similarly to the transmit path. When a user environment requests a packet (e.g., via sys_e1000_recv), the kernel checks the E1000 receive descriptor ring for a completed packet.
+If a packet is available, it's passed directly to the user with copying to his buffer. If no packet is available, the calling environment is:
+* Marked as ENV_NOT_RUNNABLE.
+* Its ID and receive buffer info are saved.
+* The CPU is yielded to allow other environments to run.
+When a receive interrupt occurs (indicating that a packet has arrived), the interrupt handler checks for any environment blocked on receive, fills in the data, marks it as ENV_RUNNABLE, and allows it to continue.
+
+
+3. What does the web page served by JOS's web server say?
+
+This file came from JOS.
+Cheesy web page!
+
+
+4. How long approximately did it take you to do this lab?
+7 days of full work
+
+
+
