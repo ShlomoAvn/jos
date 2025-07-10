@@ -63,6 +63,11 @@ unsigned int sys_time_msec(void);
 int	sys_e1000_transmit(void *data, size_t len);
 int	sys_net_recv(void *buf, size_t len);
 int sys_get_mac(uint8_t *mac);
+int sys_e1000_register_rx_buffer(void *buf, size_t len);
+int sys_advance_register_rx_buffer(void);
+int sys_e1000_get_TDH(void);
+
+//void sleep(int msec);
 
 
 int sys_env_load_elf(struct Trapframe *tf, struct SegmentInfo *seginfo);

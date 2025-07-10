@@ -259,9 +259,11 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	int r;
 
 	if ((uint32_t)va >= UTOP || PGOFF(va) != 0) {
+		cprintf("sys_page_alloc: va = %08x, PGOFF(va) = %08x, utop = %08x\n", va, PGOFF(va), UTOP);
 		return -E_INVAL;
 	}
 	if ((perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P)) {
+		cprintf("sys_page_alloc: perm = %08x\n", perm);
 		return -E_INVAL;
 	}
 	if ((perm & ~(PTE_SYSCALL)) != 0) {
@@ -543,11 +545,9 @@ sys_time_msec(void)
 }
 
 int
-sys_e1000_transmit(const void *data, size_t len)
+sys_e1000_transmit(void *data, size_t len)
 {
 	cprintf("sys_e1000_transmit: data=%p, len=%d\n", data, len);
-	//print_all_status_rx();
-    // בדוק האם המצביע תקין (בתוך user space)
 	 cprintf("SYS_TRANSMIT: len=%d, first bytes: %02x %02x %02x %02x\n", 
             len, ((char*)data)[0], ((char*)data)[1], ((char*)data)[2], ((char*)data)[3]);
     user_mem_assert(curenv, data, len, PTE_U);
@@ -569,9 +569,7 @@ sys_e1000_transmit(const void *data, size_t len)
 	// Save the current environment and syscall arguments for later completion
 	// *** BLOCKING HAPPENS HERE ***
     // No packet available - block the environment
-    transmit_blocked_env = curenv;           // 1. Save which env is blocked
-    transmit_syscall_dstva = (uint32_t)data; // 2. Save syscall arguments
-    transmit_syscall_len = len;              //    (needed for later completion)
+    e1000_set_transmit_blocked_env(curenv, (uintptr_t)data, len);
     
     // 3. Mark environment as not runnable (THIS IS THE ACTUAL BLOCKING)
     curenv->env_status = ENV_NOT_RUNNABLE;
@@ -591,32 +589,40 @@ int sys_net_recv(void *data, size_t len)
     
     // Try immediate receive
     int result = e1000_rx(data, len);
-    if (result != -E_RX_EMPTY) {
+    if (result >= 0) {
 		cprintf("sys_net_recv: received packet immediately, len=%d\n", result);
         return result;
     }
-    
-    // Convert virtual address to physical for interrupt handler
-//    physaddr_t phys_addr = PADDR(data);  // Convert to physical
-	//physaddr_t phys_addr = PADDR(data);
-    e1000_set_recv_blocked_env(curenv, (uintptr_t)data, len);
-     while (e1000_get_recv_blocked_env() == curenv) {
-		cprintf("sys_net_recv: no packet available, blocking...\n");
-		if (irq_mask_8259A & (1 << e1000_irq)) {
-    cprintf("E1000 IRQ %d is masked (disabled) in PIC\n", e1000_irq);
-} else {
-    cprintf("E1000 IRQ %d is unmasked (enabled) in PIC\n", e1000_irq);
-}
-		curenv->env_status = ENV_NOT_RUNNABLE;
-		sched_yield();
-	 }
-	 cprintf("sys_net_recv: received packet, copying data...\n");
-    memmove(data, kernel_rx_buffer, recv_result_len);
-    result = recv_result_len;
-    recv_result_len = 0;
-    return result;
+    cprintf("sys_net_recv: no packet available, blocking...\n");
 
-    //return curenv->env_tf.tf_regs.reg_eax;
+
+    e1000_set_recv_blocked_env(curenv, (uintptr_t)data, len);
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	sched_yield();
+
+	//will not get here
+    return result;
+}
+
+
+int sys_e1000_register_rx_buffer(void *buf, size_t len){
+	cprintf("sys_e1000_register_rx_buffer: buf=%p, len=%d\n", buf, len);
+	user_mem_assert(curenv, buf, len, PTE_U | PTE_P);
+	e1000_set_recv_buffers(curenv, (uintptr_t)buf, len);
+	return 0;
+}
+
+
+// Advance the receive buffer
+int sys_advance_register_rx_buffer(void)
+{
+	e1000_advance_rx_tail();
+	return 0;
+}
+
+int sys_e1000_get_TDH(void)
+{
+	return e1000_get_idx_of_transmitted_packet();
 }
 
 
@@ -670,11 +676,17 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_time_msec:
 			return sys_time_msec();
 		case SYS_e1000_transmit:
-			return sys_e1000_transmit((const void *)a1, (size_t)a2);
+			return sys_e1000_transmit((void *)a1, (size_t)a2);
 		case SYS_net_recv:
 			return sys_net_recv((void *)a1, (size_t)a2);
 		case SYS_get_mac:
 			return sys_get_mac((uint8_t *)a1);
+		case SYS_e1000_register_rx_buffer:
+			return sys_e1000_register_rx_buffer((void *)a1, (size_t)a2);
+		case SYS_e1000_advance_register_rx_buffer:
+			return sys_advance_register_rx_buffer();
+		case SYS_e1000_get_TDH:
+			return sys_e1000_get_TDH();
 			
 	
 

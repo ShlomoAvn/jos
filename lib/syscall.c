@@ -148,3 +148,19 @@ int sys_get_mac(uint8_t *mac_store)
 	return syscall(SYS_get_mac, 0, (uint32_t)mac_store, 0, 0, 0, 0);
 }
 
+
+int sys_e1000_register_rx_buffer(void *buf, size_t len)
+{
+	cprintf("sys_e1000_register_rx_buffer: buf=%p, len=%d\n", buf, len);
+	return syscall(SYS_e1000_register_rx_buffer, 0, (uint32_t)buf, len, 0, 0, 0);
+}
+
+int sys_advance_register_rx_buffer(void)
+{
+	return syscall(SYS_e1000_advance_register_rx_buffer, 0, 0, 0, 0, 0, 0);
+}
+
+int sys_e1000_get_TDH(void)
+{
+	return syscall(SYS_e1000_get_TDH, 0, 0, 0, 0, 0, 0);
+}	

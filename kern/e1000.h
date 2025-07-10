@@ -15,7 +15,7 @@
 #define E1000_TCTL_EN  0x00000002
 #define E1000_RCTL_EN  0x00000002
 
-#define TX_RING_SIZE 64
+#define TX_RING_SIZE 32
 #define TX_PKT_SIZE 1518
 #define RX_RING_SIZE    128   // Number of receive descriptors
 
@@ -130,7 +130,7 @@ void e1000_rx_status(void);
 // void e1000_write_reg(uint32_t reg, uint32_t value);
 // uint32_t e1000_read_reg(uint32_t reg);
 int e1000_attach(struct pci_func *pcif);
-int e1000_transmit(const void *data, size_t len);
+int e1000_transmit(void *data, size_t len);
 void e1000_intr(void);
 
 void e1000_set_recv_blocked_env(struct Env *env, uintptr_t dstva, size_t len);
@@ -139,5 +139,11 @@ void print_all_status_rx(void);
 void print_icr(void);
 void e1000_get_mac(uint8_t *mac);
 
+void e1000_set_transmit_blocked_env(struct Env *env, uintptr_t dstva, size_t len);
+
+void e1000_set_recv_buffers(struct Env *env, uintptr_t dstva, size_t len);
+
+void e1000_advance_rx_tail(void);
+int e1000_get_idx_of_transmitted_packet(void);
 #endif	// JOS_KERN_E1000_H
 

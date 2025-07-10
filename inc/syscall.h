@@ -22,6 +22,9 @@ enum {
 	SYS_e1000_transmit,
 	SYS_net_recv,
 	SYS_get_mac,
+	SYS_e1000_register_rx_buffer,
+	SYS_e1000_advance_register_rx_buffer,
+	SYS_e1000_get_TDH,
 	NSYSCALLS
 };
 
